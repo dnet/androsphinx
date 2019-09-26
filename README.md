@@ -1,6 +1,8 @@
 SPHINX for Android
 ==================
 
+**The code is not ready for average users, it's a proof of concept right now.**
+
 Building
 --------
 
