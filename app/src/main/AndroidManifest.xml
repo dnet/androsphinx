@@ -12,6 +12,7 @@
         android:theme="@style/AppTheme"
         android:extractNativeLibs="false"
         tools:targetApi="m"
+        tools:replace="android:allowBackup"
         tools:ignore="GoogleAppIndexingWarning">
         <activity android:name=".MainActivity">
             <intent-filter>
