@@ -26,3 +26,16 @@ include these files in the APK.
 The resulting debug APK will be here:
 
 	app/build/outputs/apk/debug/app-debug.apk
+
+License
+-------
+
+The whole project is licensed under MIT license, see `LICENSE.txt`
+
+Dependencies
+------------
+
+ - Android SDK
+ - Android NDK
+ - Gradle (included)
+ - libsodium-jni https://github.com/joshjdevl/libsodium-jni (referenced via Gradle dependency)
