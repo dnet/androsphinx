@@ -38,4 +38,5 @@ Dependencies
  - Android SDK
  - Android NDK
  - Gradle (included)
+ - libsodium headers (only needed for building `libsphinx.so`, Debian/Ubuntu package: `libsodium-dev`)
  - libsodium-jni https://github.com/joshjdevl/libsodium-jni (referenced via Gradle dependency)
