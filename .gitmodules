@@ -1,0 +1,3 @@
+[submodule "libsphinx"]
+	path = libsphinx
+	url = https://github.com/stef/libsphinx

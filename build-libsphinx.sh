@@ -6,14 +6,14 @@ SPHINX=libsphinx
 SODIUM=libsodium_headers
 OUTDIR=app/src/main/jniLibs
 
+git submodule update --init --recursive --remote
+
 rm -rf $SODIUM
 mkdir $SODIUM
 ln -s /usr/include/sodium* $SODIUM
 
 ARCH=x86_64
 TARGET=../../$OUTDIR/$ARCH
-rm -rf $SPHINX
-git clone https://github.com/stef/$SPHINX
 cd $SPHINX/src/goldilocks
 git submodule update --init --recursive --remote
 make android_x86_64
@@ -60,4 +60,4 @@ mkdir -p $TARGET
 cp libsphinx.so $TARGET
 
 cd ../..
-rm -rf $SODIUM $SPHINX
+rm -rf $SODIUM
