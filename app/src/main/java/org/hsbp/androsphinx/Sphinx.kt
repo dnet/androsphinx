@@ -2,7 +2,6 @@ package org.hsbp.androsphinx
 
 import java.nio.charset.Charset
 import java.nio.CharBuffer
-import java.util.Arrays
 
 const val SPHINX_255_SCALAR_BYTES: Int = 32
 const val SPHINX_255_SER_BYTES: Int = 32
@@ -35,14 +34,10 @@ class Sphinx {
 // SRC: https://stackoverflow.com/a/9670279
 
 private fun toBytes(chars: CharArray): ByteArray {
-
     val charBuffer = CharBuffer.wrap(chars)
     val byteBuffer = Charset.forName("UTF-8").encode(charBuffer)
-    val bytes = Arrays.copyOfRange(
-        byteBuffer.array(),
-        byteBuffer.position(), byteBuffer.limit()
-    )
-    Arrays.fill(charBuffer.array(), '\u0000') // clear sensitive data
-    Arrays.fill(byteBuffer.array(), 0.toByte()) // clear sensitive data
+    val bytes = byteBuffer.array().sliceArray(byteBuffer.position() until byteBuffer.limit())
+    charBuffer.array().fill('\u0000') // clear sensitive data
+    byteBuffer.array().fill(0) // clear sensitive data
     return bytes
 }
