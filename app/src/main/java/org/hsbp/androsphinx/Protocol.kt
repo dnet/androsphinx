@@ -53,9 +53,7 @@ class Protocol {
                    cs: CredentialStore, callback: Callback, size: Int = 0) {
             val rule = (CharacterClass.serialize(charClasses).toInt() shl RULE_SHIFT) or (size and SIZE_MASK)
             val ruleBytes = byteArrayOf(((rule and 0xFF00) shr 8).toByte(), (rule and 0xFF).toByte())
-            val sk = cs.key
-            val rk = genericHash(sk, cs.salt)
-            val encryptedRule = secretBox(ruleBytes, rk)
+            val encryptedRule = secretBox(ruleBytes, cs.ruleKey)
             val challenge = Sphinx.Challenge(password)
             Command.CREATE.execute(realm, challenge, cs, callback, encryptedRule, skToPk(cs.key))
         }
@@ -93,6 +91,10 @@ class Protocol {
 fun Protocol.CredentialStore.hashId(hostname: String): ByteArray {
     return genericHash(hostname.toByteArray(), salt)
 }
+
+val Protocol.CredentialStore.ruleKey
+    get() = genericHash(key, salt)
+
 
 private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphinx.Challenge?,
                      cs: Protocol.CredentialStore, callback: Protocol.Callback) {
