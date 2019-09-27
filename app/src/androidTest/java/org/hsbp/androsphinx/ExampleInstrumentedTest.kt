@@ -56,4 +56,13 @@ class ExampleInstrumentedTest {
             CharacterClass.values().toSet(), 20)
         assertArrayEquals(pwdULSD20, DERIVED_ULSD_20.toCharArray())
     }
+
+    @Test
+    fun characterClassSerializationTest() {
+        for (expected in 0 .. 15) {
+            val set = CharacterClass.parse(expected.toByte())
+            val serialized = CharacterClass.serialize(set)
+            assertEquals(expected.toByte(), serialized)
+        }
+    }
 }

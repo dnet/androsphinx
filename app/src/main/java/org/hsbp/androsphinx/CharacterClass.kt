@@ -2,6 +2,8 @@ package org.hsbp.androsphinx
 
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.*
+import kotlin.experimental.and
 import kotlin.experimental.or
 import kotlin.math.log
 
@@ -16,6 +18,10 @@ enum class CharacterClass(private val bit: Byte, private val range: Set<Char>) {
         fun serialize(values: Set<CharacterClass>): Byte {
             return values.fold(0.toByte()) { acc, cc -> acc or cc.bit }
         }
+
+        fun parse(serialized: Byte): Set<CharacterClass> =
+            values().filterTo(EnumSet.noneOf(CharacterClass::class.java)) {
+                it.bit and serialized == it.bit }
 
         @ExperimentalUnsignedTypes
         fun derive(rwd: ByteArray, rule: Set<CharacterClass>, size: Int): CharArray {
