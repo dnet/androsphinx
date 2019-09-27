@@ -10,9 +10,9 @@ class Protocol {
     enum class Command(private val code: Byte) {
         CREATE(0x00), GET(0x66), COMMIT(0x99.toByte()), CHANGE(0xAA.toByte()), DELETE(0xFF.toByte());
 
-        fun execute(username: String, hostname: String, challenge: Sphinx.Challenge?, cs: CredentialStore, callback: Callback?, vararg extra: ByteArray) {
+        fun execute(realm: Realm, challenge: Sphinx.Challenge?, cs: CredentialStore, callback: Callback, vararg extra: ByteArray) {
             val parts = sequence {
-                yield(cs.hashId(username + hostname))
+                yield(realm.hash(cs))
                 if (challenge != null) yield(challenge.challenge)
                 yieldAll(extra.asSequence())
             }.toList()
@@ -25,8 +25,12 @@ class Protocol {
                 offset + ps
             }
 
-            doSphinx(message, hostname, challenge, cs, callback)
+            doSphinx(message, realm, challenge, cs, callback)
         }
+    }
+
+    class Realm(val username: String, val hostname: String) {
+        fun hash(cs: CredentialStore) = cs.hashId(username + hostname)
     }
 
     interface CredentialStore {
@@ -45,40 +49,40 @@ class Protocol {
     }
 
     companion object {
-        fun create(password: CharArray, username: String, hostname: String,
-                   charClasses: Set<CharacterClass>, cs: CredentialStore, callback: Callback?, size: Int = 0) {
+        fun create(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
+                   cs: CredentialStore, callback: Callback, size: Int = 0) {
             val rule = (CharacterClass.serialize(charClasses).toInt() shl RULE_SHIFT) or (size and SIZE_MASK)
             val ruleBytes = byteArrayOf(((rule and 0xFF00) shr 8).toByte(), (rule and 0xFF).toByte())
             val sk = cs.key
             val rk = genericHash(sk, cs.salt)
             val encryptedRule = secretBox(ruleBytes, rk)
             val challenge = Sphinx.Challenge(password)
-            Command.CREATE.execute(username, hostname, challenge, cs, callback, encryptedRule, skToPk(sk))
+            Command.CREATE.execute(realm, challenge, cs, callback, encryptedRule, skToPk(cs.key))
         }
 
-        fun get(password: CharArray, username: String, hostname: String, cs: CredentialStore, callback: Callback?) {
-            Command.GET.execute(username, hostname, Sphinx.Challenge(password), cs, callback)
+        fun get(password: CharArray, realm: Realm, cs: CredentialStore, callback: Callback) {
+            Command.GET.execute(realm, Sphinx.Challenge(password), cs, callback)
         }
 
-        fun change(password: CharArray, username: String, hostname: String, cs: CredentialStore, callback: Callback?) {
-            Command.CHANGE.execute(username, hostname, Sphinx.Challenge(password), cs, callback)
+        fun change(password: CharArray, realm: Realm, cs: CredentialStore, callback: Callback) {
+            Command.CHANGE.execute(realm, Sphinx.Challenge(password), cs, callback)
         }
 
-        fun commit(username: String, hostname: String, cs: CredentialStore, callback: Callback?) {
-            Command.COMMIT.execute(username, hostname, null, cs, callback)
+        fun commit(realm: Realm, cs: CredentialStore, callback: Callback) {
+            Command.COMMIT.execute(realm, null, cs, callback)
         }
 
-        fun delete(username: String, hostname: String, cs: CredentialStore) {
+        fun delete(realm: Realm, cs: CredentialStore) {
             val callback = object : Callback {
                 override fun commandCompleted() {
-                    cs.deleteUser(cs.hashId(hostname), username)
+                    cs.deleteUser(cs.hashId(realm.hostname), realm.username)
                 }
 
                 override fun passwordReceived(password: CharArray) {
                     throw IllegalStateException()
                 }
             }
-            Command.DELETE.execute(username, hostname, null, cs, callback)
+            Command.DELETE.execute(realm, null, cs, callback)
         }
 
         fun list(hostname: String, cs: CredentialStore): List<String> =
@@ -90,9 +94,8 @@ fun Protocol.CredentialStore.hashId(hostname: String): ByteArray {
     return genericHash(hostname.toByteArray(), salt)
 }
 
-private fun doSphinx(message: ByteArray, hostname: String, challenge: Sphinx.Challenge?,
-                     cs: Protocol.CredentialStore, callback: Protocol.Callback?) {
-    val hostId = cs.hashId(hostname)
+private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphinx.Challenge?,
+                     cs: Protocol.CredentialStore, callback: Protocol.Callback) {
     val signed = cryptoSign(message, cs.key)
     val data = Socket(cs.host, cs.port).use { s ->
         s.getOutputStream().write(message)
