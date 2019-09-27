@@ -3,6 +3,9 @@ package org.hsbp.androsphinx
 import java.lang.IllegalStateException
 import java.net.Socket
 
+const val SIZE_MASK: Int = 0x7F
+const val RULE_SHIFT: Int = 7
+
 class Protocol {
     enum class Command(private val code: Byte) {
         CREATE(0x00), GET(0x66), COMMIT(0x99.toByte()), CHANGE(0xAA.toByte()), DELETE(0xFF.toByte());
@@ -44,7 +47,7 @@ class Protocol {
     companion object {
         fun create(password: CharArray, username: String, hostname: String,
                    charClasses: Set<CharacterClass>, cs: CredentialStore, callback: Callback?, size: Int = 0) {
-            val rule = (CharacterClass.serialize(charClasses).toInt() shl 7) or (size and 0x7f)
+            val rule = (CharacterClass.serialize(charClasses).toInt() shl RULE_SHIFT) or (size and SIZE_MASK)
             val ruleBytes = byteArrayOf(((rule and 0xFF00) shr 8).toByte(), (rule and 0xFF).toByte())
             val sk = cs.key
             val rk = genericHash(sk, cs.salt)
