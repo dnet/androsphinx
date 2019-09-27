@@ -13,7 +13,7 @@ class MainActivity : AppCompatActivity() {
         val c = Sphinx.Challenge("shitty password\u0000".toCharArray())
         val secret = ByteArray(32) { ' '.toByte() }
         val resp = Sphinx.respond(c.challenge, secret)
-        val rwd = Sphinx.finish("shitty password\u0000".toCharArray(), c.blindingFactor, resp)
+        val rwd = c.finish(resp)
         output.text = rwd.joinToString { it.toString(16).padStart(2, '0') }
     }
 }

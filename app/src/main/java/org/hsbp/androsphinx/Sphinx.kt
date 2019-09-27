@@ -12,21 +12,22 @@ class Sphinx {
             System.loadLibrary("sphinx")
         }
 
-        fun finish(password: CharArray, blindingFactor: ByteArray, response: ByteArray): ByteArray {
-            return finish(toBytes(password), blindingFactor, response)
-        }
-
         @JvmStatic private external fun challenge(password: ByteArray, blindingFactor: ByteArray, challenge: ByteArray)
         @JvmStatic external fun respond(challenge: ByteArray, secret: ByteArray): ByteArray
         @JvmStatic private external fun finish(password: ByteArray, blindingFactor: ByteArray, resp: ByteArray): ByteArray
     }
 
     class Challenge(pwd: CharArray) {
-        val blindingFactor: ByteArray = ByteArray(SPHINX_255_SCALAR_BYTES)
+        private val blindingFactor: ByteArray = ByteArray(SPHINX_255_SCALAR_BYTES)
         val challenge: ByteArray = ByteArray(SPHINX_255_SER_BYTES)
+        private val passwordBytes = toBytes(pwd)
 
         init {
-            challenge(toBytes(pwd), blindingFactor, challenge)
+            challenge(passwordBytes, blindingFactor, challenge)
+        }
+
+        fun finish(response: ByteArray): ByteArray {
+            return finish(passwordBytes, blindingFactor, response)
         }
     }
 }
