@@ -100,7 +100,7 @@ private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphin
                      cs: Protocol.CredentialStore, callback: Protocol.Callback) {
     val signed = cryptoSign(message, cs.key)
     val data = Socket(cs.host, cs.port).use { s ->
-        s.getOutputStream().write(message)
+        s.getOutputStream().write(signed)
         s.getInputStream().readBytes()
     }
     TODO("parse 'data'")
