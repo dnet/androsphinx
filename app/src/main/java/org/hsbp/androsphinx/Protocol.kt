@@ -18,7 +18,7 @@ class Protocol {
                 if (challenge != null) yield(challenge.challenge)
                 yieldAll(extra.asSequence())
             }.toList()
-            val message = ByteArray(parts.map(ByteArray::size).sum() + 1)
+            val message = ByteArray(parts.map { it.size }.sum() + 1)
 
             message[0] = code
             parts.fold(1) { offset, part ->
