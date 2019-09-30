@@ -51,10 +51,9 @@ fun cryptoSignOpen(signedMessage: ByteArray, publicKey: ByteArray): ByteArray {
 }
 
 fun secretBoxOpen(cipherText: ByteArray, nonce: ByteArray, key: ByteArray): ByteArray {
-    val padded = ByteArray(Sodium.crypto_secretbox_boxzerobytes()) { 0.toByte() } + cipherText
-    val message = ByteArray(padded.size)
-    if (Sodium.crypto_secretbox_open_easy(message, padded, padded.size, nonce, key) != 0) {
+    val message = ByteArray(cipherText.size - Sodium.crypto_secretbox_macbytes())
+    if (Sodium.crypto_secretbox_open_easy(message, cipherText, cipherText.size, nonce, key) != 0) {
         throw RuntimeException("Cannot open secretBox")
     }
-    return message.sliceArray(Sodium.crypto_box_boxzerobytes() until message.size)
+    return message
 }
