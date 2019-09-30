@@ -5,6 +5,7 @@ import java.nio.CharBuffer
 
 const val SPHINX_255_SCALAR_BYTES: Int = 32
 const val SPHINX_255_SER_BYTES: Int = 32
+const val DECAF_255_SER_BYTES: Int = 32
 
 class Sphinx {
     companion object {

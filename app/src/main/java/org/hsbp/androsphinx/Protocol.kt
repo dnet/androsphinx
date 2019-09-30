@@ -1,11 +1,13 @@
 package org.hsbp.androsphinx
 
 import java.lang.IllegalStateException
+import java.lang.RuntimeException
 import java.net.Socket
 
 const val SIZE_MASK: Int = 0x7F
 const val RULE_SHIFT: Int = 7
 
+@ExperimentalUnsignedTypes
 class Protocol {
     enum class Command(private val code: Byte) {
         CREATE(0x00), GET(0x66), COMMIT(0x99.toByte()), CHANGE(0xAA.toByte()), DELETE(0xFF.toByte());
@@ -38,6 +40,7 @@ class Protocol {
         val salt: ByteArray
         val host: String
         val port: Int
+        val serverPublicKey: ByteArray
         fun getUsers(hostId: ByteArray): List<String>
         fun cacheUser(hostId: ByteArray, username: String)
         fun deleteUser(hostId: ByteArray, username: String)
@@ -88,14 +91,17 @@ class Protocol {
     }
 }
 
+@ExperimentalUnsignedTypes
 fun Protocol.CredentialStore.hashId(hostname: String): ByteArray {
     return genericHash(hostname.toByteArray(), salt)
 }
 
+@ExperimentalUnsignedTypes
 val Protocol.CredentialStore.ruleKey
     get() = genericHash(key, salt)
 
 
+@ExperimentalUnsignedTypes
 private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphinx.Challenge?,
                      cs: Protocol.CredentialStore, callback: Protocol.Callback) {
     val signed = cryptoSign(message, cs.key)
@@ -103,5 +109,27 @@ private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphin
         s.getOutputStream().write(signed)
         s.getInputStream().readBytes()
     }
-    TODO("parse 'data'")
+    val payload = cryptoSignOpen(data, cs.serverPublicKey)
+    if (!payload.contentEquals("ok".toByteArray()) &&
+        (payload.sliceArray(0 until payload.size - 42).contentEquals("fail".toByteArray())
+                || payload.size != DECAF_255_SER_BYTES + 42)) {
+        throw RuntimeException("Server failure")
+    }
+    if (challenge == null) {
+        callback.commandCompleted()
+        return
+    }
+    val rwd = challenge.finish(payload.sliceArray(0 until DECAF_255_SER_BYTES))
+
+    if (realm.username !in Protocol.list(realm.hostname, cs)) {
+        cs.cacheUser(cs.hashId(realm.hostname), realm.username)
+    }
+
+    val encryptedRule = payload.sliceArray(DECAF_255_SER_BYTES until payload.size)
+    val ruleBytes = secretBoxOpen(encryptedRule.sliceArray(24 until encryptedRule.size),
+        encryptedRule.sliceArray(0 until 24), cs.ruleKey)
+    val combined = (ruleBytes[0].toInt() shl 8) or ruleBytes[1].toInt()
+    val size = combined and SIZE_MASK
+    val rule = CharacterClass.parse((combined shr RULE_SHIFT).toByte())
+    callback.passwordReceived(CharacterClass.derive(rwd, rule, size))
 }

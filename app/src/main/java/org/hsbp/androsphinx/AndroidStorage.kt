@@ -11,6 +11,7 @@ const val BASE64_FLAGS = Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP
 const val SHARED_PREFERENCES_NAME = "androsphinx"
 const val SHARED_PREFERENCES_KEY_HOST = "host"
 const val SHARED_PREFERENCES_KEY_PORT = "port"
+const val SHARED_PREFERENCES_KEY_SERVER_PK = "server_pk"
 
 // TODO encrypt before storage / decrypt after retrieval using Android Key Store
 
@@ -40,6 +41,9 @@ class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStor
 
     override val port: Int
         get() = sharedPreferences.getInt(SHARED_PREFERENCES_KEY_PORT, 0)
+
+    override val serverPublicKey: ByteArray
+        get() = Base64.decode(sharedPreferences.getString(SHARED_PREFERENCES_KEY_SERVER_PK, "")!!, Base64.DEFAULT)
 
     private val sharedPreferences: SharedPreferences
         get() = ctx.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE)

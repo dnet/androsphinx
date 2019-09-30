@@ -1,6 +1,7 @@
 package org.hsbp.androsphinx
 
 import org.libsodium.jni.Sodium
+import java.lang.RuntimeException
 
 fun cryptoSign(message: ByteArray, key: ByteArray): ByteArray {
     val signed = ByteArray(message.size + Sodium.crypto_sign_bytes())
@@ -38,4 +39,22 @@ fun cryptoSignKeyPair(): ByteArray {
     val pk = ByteArray(Sodium.crypto_sign_publickeybytes())
     Sodium.crypto_sign_keypair(pk, sk)
     return sk
+}
+
+fun cryptoSignOpen(signedMessage: ByteArray, publicKey: ByteArray): ByteArray {
+    val buffer = ByteArray(signedMessage.size)
+    val msgLen = intArrayOf(buffer.size)
+    if (Sodium.crypto_sign_open(buffer, msgLen, signedMessage, signedMessage.size, publicKey) != 0) {
+        throw RuntimeException("Invalid signature")
+    }
+    return buffer.sliceArray(0 until msgLen[0])
+}
+
+fun secretBoxOpen(cipherText: ByteArray, nonce: ByteArray, key: ByteArray): ByteArray {
+    val padded = ByteArray(Sodium.crypto_secretbox_boxzerobytes()) { 0.toByte() } + cipherText
+    val message = ByteArray(padded.size)
+    if (Sodium.crypto_secretbox_open_easy(message, padded, padded.size, nonce, key) != 0) {
+        throw RuntimeException("Cannot open secretBox")
+    }
+    return message.sliceArray(Sodium.crypto_box_boxzerobytes() until message.size)
 }
