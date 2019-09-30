@@ -41,6 +41,7 @@ class ExampleInstrumentedTest {
     }
 
     @Test
+    @ExperimentalUnsignedTypes
     fun encodingTest() {
         val rwd = Base64.decode(RWD_INPUT, Base64.DEFAULT)
 

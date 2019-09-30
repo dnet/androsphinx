@@ -7,11 +7,11 @@ import java.net.Socket
 const val SIZE_MASK: Int = 0x7F
 const val RULE_SHIFT: Int = 7
 
-@ExperimentalUnsignedTypes
 class Protocol {
     enum class Command(private val code: Byte) {
         CREATE(0x00), GET(0x66), COMMIT(0x99.toByte()), CHANGE(0xAA.toByte()), DELETE(0xFF.toByte());
 
+        @ExperimentalUnsignedTypes
         fun execute(realm: Realm, challenge: Sphinx.Challenge?, cs: CredentialStore, callback: Callback, vararg extra: ByteArray) {
             val parts = sequence {
                 yield(realm.hash(cs))
@@ -52,6 +52,7 @@ class Protocol {
     }
 
     companion object {
+        @ExperimentalUnsignedTypes
         fun create(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
                    cs: CredentialStore, callback: Callback, size: Int = 0) {
             val rule = (CharacterClass.serialize(charClasses).toInt() shl RULE_SHIFT) or (size and SIZE_MASK)
@@ -61,18 +62,22 @@ class Protocol {
             Command.CREATE.execute(realm, challenge, cs, callback, encryptedRule, skToPk(cs.key))
         }
 
+        @ExperimentalUnsignedTypes
         fun get(password: CharArray, realm: Realm, cs: CredentialStore, callback: Callback) {
             Command.GET.execute(realm, Sphinx.Challenge(password), cs, callback)
         }
 
+        @ExperimentalUnsignedTypes
         fun change(password: CharArray, realm: Realm, cs: CredentialStore, callback: Callback) {
             Command.CHANGE.execute(realm, Sphinx.Challenge(password), cs, callback)
         }
 
+        @ExperimentalUnsignedTypes
         fun commit(realm: Realm, cs: CredentialStore, callback: Callback) {
             Command.COMMIT.execute(realm, null, cs, callback)
         }
 
+        @ExperimentalUnsignedTypes
         fun delete(realm: Realm, cs: CredentialStore) {
             val callback = object : Callback {
                 override fun commandCompleted() {
@@ -91,12 +96,10 @@ class Protocol {
     }
 }
 
-@ExperimentalUnsignedTypes
 fun Protocol.CredentialStore.hashId(hostname: String): ByteArray {
     return genericHash(hostname.toByteArray(), salt)
 }
 
-@ExperimentalUnsignedTypes
 val Protocol.CredentialStore.ruleKey
     get() = genericHash(key, salt)
 
