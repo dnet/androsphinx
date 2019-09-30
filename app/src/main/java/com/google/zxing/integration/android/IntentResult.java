@@ -28,21 +28,24 @@ public final class IntentResult {
     private final byte[] rawBytes;
     private final Integer orientation;
     private final String errorCorrectionLevel;
+    private final byte[] byteSegments0; // SRC: https://stackoverflow.com/a/11416667/246098
 
     IntentResult() {
-        this(null, null, null, null, null10);
+        this(null, null, null, null, null, null);
     }
 
     IntentResult(String contents,
                  String formatName,
                  byte[] rawBytes,
                  Integer orientation,
-                 String errorCorrectionLevel) {
+                 String errorCorrectionLevel,
+                 byte[] byteSegments0) {
         this.contents = contents;
         this.formatName = formatName;
         this.rawBytes = rawBytes;
         this.orientation = orientation;
         this.errorCorrectionLevel = errorCorrectionLevel;
+        this.byteSegments0 = byteSegments0;
     }
 
     /**
@@ -79,6 +82,8 @@ public final class IntentResult {
     public String getErrorCorrectionLevel() {
         return errorCorrectionLevel;
     }
+
+    public byte[] getByteSegments0() { return byteSegments0; }
 
     @Override
     public String toString() {

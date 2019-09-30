@@ -40,3 +40,21 @@ Dependencies
  - Gradle (included)
  - libsodium headers (only needed for building `libsphinx.so`, Debian/Ubuntu package: `libsodium-dev`)
  - libsodium-jni https://github.com/joshjdevl/libsodium-jni (referenced via Gradle dependency)
+
+QR code format
+--------------
+
+Server details can be configured using a simple QR code with the following format:
+
+ - Server public key (32 bytes, "raw" without any encoding)
+ - Server port (big endian, 2 bytes, "raw" without any encoding)
+ - Server hostname (UTF-8)
+
+This could be generated this way using qrencode (Debian/Ubuntu package: `qrencode`)
+
+	(cat ~/.sphinx/server-key.pub ; printf '\x09\x33%s' "example.com") | qrencode -8 -t ANSI256
+
+In the above case, 0x0933 is port 2355 (the default port). Extra care must be
+taken so that the QR encoder also knows about the input being in 8-bit mode.
+In the above example, without the `-8` switch, the output is truncated when
+read by the application.

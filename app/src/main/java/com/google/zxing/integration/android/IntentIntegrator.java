@@ -425,11 +425,13 @@ public class IntentIntegrator {
                 int intentOrientation = intent.getIntExtra("SCAN_RESULT_ORIENTATION", Integer.MIN_VALUE);
                 Integer orientation = intentOrientation == Integer.MIN_VALUE ? null : intentOrientation;
                 String errorCorrectionLevel = intent.getStringExtra("SCAN_RESULT_ERROR_CORRECTION_LEVEL");
+                byte[] byteSegments0 = intent.getByteArrayExtra("SCAN_RESULT_BYTE_SEGMENTS_0");
                 return new IntentResult(contents,
                         formatName,
                         rawBytes,
                         orientation,
-                        errorCorrectionLevel);
+                        errorCorrectionLevel,
+                        byteSegments0);
             }
             return new IntentResult();
         }
