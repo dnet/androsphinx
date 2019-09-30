@@ -28,7 +28,7 @@ class ExampleInstrumentedTest {
         val secret = ByteArray(32) { ' '.toByte() }
         val resp = Sphinx.respond(c.challenge, secret)
         val rwd = c.finish(resp)
-        assertArrayEquals(rwd, Base64.decode(EXPECTED_BASIC_TEST, Base64.DEFAULT))
+        assertArrayEquals(Base64.decode(EXPECTED_BASIC_TEST, Base64.DEFAULT), rwd)
     }
 
     @Test
@@ -37,9 +37,9 @@ class ExampleInstrumentedTest {
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
         val storage = AndroidCredentialStore(appContext)
         val key = storage.key
-        assertEquals(key.size, Sodium.crypto_sign_secretkeybytes())
-        assertArrayEquals(key, storage.key)
-        assertEquals(storage.salt.size, SALT_BYTES)
+        assertEquals(Sodium.crypto_sign_secretkeybytes(), key.size)
+        assertArrayEquals(storage.key, key)
+        assertEquals(SALT_BYTES, storage.salt.size)
 
         val host1 = ByteArray(16) { 1 }
         val host2 = ByteArray(16) { 2 }
@@ -59,17 +59,17 @@ class ExampleInstrumentedTest {
         assert(storage.getUsers(host1).containsAll(listOf(host1user1, host1user2)))
 
         storage.cacheUser(host2, host2user1)
-        assertEquals(storage.getUsers(host1).size, 2)
+        assertEquals(2, storage.getUsers(host1).size)
         assert(storage.getUsers(host1).containsAll(listOf(host1user1, host1user2)))
-        assertEquals(storage.getUsers(host2).size, 1)
+        assertEquals(1, storage.getUsers(host2).size)
         assert(storage.getUsers(host1).contains(host1user2))
 
         storage.deleteUser(host1, host1user1)
-        assertEquals(storage.getUsers(host1).size, 1)
+        assertEquals(1, storage.getUsers(host1).size)
         assert(storage.getUsers(host1).contains(host1user2))
 
-        assertEquals(storage.host, "")
-        assertEquals(storage.port, 0)
+        assertEquals("", storage.host)
+        assertEquals(0, storage.port)
         assert(storage.serverPublicKey.isEmpty())
 
         val host = "example.tld"
@@ -77,8 +77,8 @@ class ExampleInstrumentedTest {
         val serverPublicKey = ByteArray(32) { 3 }
         appContext.storeServerInfo(host, port, serverPublicKey)
 
-        assertEquals(storage.host, host)
-        assertEquals(storage.port, port)
-        assertArrayEquals(storage.serverPublicKey, serverPublicKey)
+        assertEquals(host, storage.host)
+        assertEquals(port, storage.port)
+        assertArrayEquals(serverPublicKey, storage.serverPublicKey)
     }
 }

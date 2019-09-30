@@ -31,15 +31,15 @@ class ExampleUnitTest {
 
         val pwdUL20 = CharacterClass.derive(rwd,
             setOf(CharacterClass.UPPER, CharacterClass.LOWER), 20)
-        assertArrayEquals(pwdUL20, DERIVED_UL_20.toCharArray())
+        assertArrayEquals(DERIVED_UL_20.toCharArray(), pwdUL20)
 
         val pwdU20 = CharacterClass.derive(rwd,
             setOf(CharacterClass.UPPER), 20)
-        assertArrayEquals(pwdU20, DERIVED_U_20.toCharArray())
+        assertArrayEquals(DERIVED_U_20.toCharArray(), pwdU20)
 
         val pwdULSD20 = CharacterClass.derive(rwd,
             CharacterClass.values().toSet(), 20)
-        assertArrayEquals(pwdULSD20, DERIVED_ULSD_20.toCharArray())
+        assertArrayEquals(DERIVED_ULSD_20.toCharArray(), pwdULSD20)
     }
 
     @Test
