@@ -7,7 +7,7 @@ import kotlin.experimental.and
 import kotlin.experimental.or
 import kotlin.math.log
 
-enum class CharacterClass(private val bit: Byte, private val range: Set<Char>) {
+enum class CharacterClass(private val bit: Byte, internal val range: Set<Char>) {
     UPPER(bit = 1, range = CharRange('A', 'Z').toSet()),
     LOWER(bit = 2, range = CharRange('a', 'z').toSet()),
     SYMBOLS(bit = 4, range = CharRange(' ', '/') union CharRange(':', '@') union
