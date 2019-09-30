@@ -81,4 +81,37 @@ class ExampleInstrumentedTest {
         assertEquals(port, storage.port)
         assertArrayEquals(serverPublicKey, storage.serverPublicKey)
     }
+
+    @Test
+    fun sphinxNetworkTest() {
+        NaCl.sodium()
+        val cs = MockCredentialStore()
+        val username = "network"
+        val hostname = "test.tld"
+        val realm = Protocol.Realm(username, hostname)
+        val charClasses = setOf(CharacterClass.LOWER, CharacterClass.DIGITS)
+        val size = 18
+        val callback = object : Protocol.Callback {
+            var gotPassword: CharArray? = null
+
+            override fun commandCompleted() {
+                throw IllegalStateException()
+            }
+
+            override fun passwordReceived(password: CharArray) {
+                gotPassword = password
+            }
+        }
+
+        Protocol.create("sphinxNetworkTestMasterPassword".toCharArray(), realm, charClasses, cs, callback, size)
+        assertNotNull(callback.gotPassword)
+        val pw = callback.gotPassword!!
+        assertEquals(size, pw.size)
+        assert(pw.all { pwChar -> charClasses.any { it.range.contains(pwChar) } })
+
+        callback.gotPassword = null
+
+        Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
+        assertArrayEquals(pw, callback.gotPassword)
+    }
 }
