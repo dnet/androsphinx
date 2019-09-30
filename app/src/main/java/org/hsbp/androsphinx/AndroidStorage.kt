@@ -84,3 +84,12 @@ class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStor
     }
 }
 
+fun Context.storeServerInfo(host: String, port: Int, serverPublicKey: ByteArray) {
+    with(getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE).edit()) {
+        putString(SHARED_PREFERENCES_KEY_HOST, host)
+        putInt(SHARED_PREFERENCES_KEY_PORT, port)
+        putString(SHARED_PREFERENCES_KEY_SERVER_PK,
+            Base64.encodeToString(serverPublicKey, Base64.DEFAULT))
+        commit()
+    }
+}
