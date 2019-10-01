@@ -24,11 +24,12 @@ const val EXPECTED_BASIC_TEST = "Dnw7PR+5GmrE/t6RtaF12gPIQSWaIGaSje7RgQvasy4="
 class ExampleInstrumentedTest {
     @Test
     fun sphinxBasicTest() {
-        val c = Sphinx.Challenge("shitty password\u0000".toCharArray())
-        val secret = ByteArray(32) { ' '.toByte() }
-        val resp = Sphinx.respond(c.challenge, secret)
-        val rwd = c.finish(resp)
-        assertArrayEquals(Base64.decode(EXPECTED_BASIC_TEST, Base64.DEFAULT), rwd)
+        Sphinx.Challenge("shitty password\u0000".toCharArray()).use { c ->
+            val secret = ByteArray(32) { ' '.toByte() }
+            val resp = Sphinx.respond(c.challenge, secret)
+            val rwd = c.finish(resp)
+            assertArrayEquals(Base64.decode(EXPECTED_BASIC_TEST, Base64.DEFAULT), rwd)
+        }
     }
 
     @Test

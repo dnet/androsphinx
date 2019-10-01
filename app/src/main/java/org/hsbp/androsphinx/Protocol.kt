@@ -12,22 +12,24 @@ class Protocol {
         CREATE(0x00), GET(0x66), COMMIT(0x99.toByte()), CHANGE(0xAA.toByte()), DELETE(0xFF.toByte());
 
         @ExperimentalUnsignedTypes
-        fun execute(realm: Realm, challenge: Sphinx.Challenge, cs: CredentialStore, callback: PasswordCallback, vararg extra: ByteArray) {
-            val parts = sequence {
-                yield(realm.hash(cs))
-                yield(challenge.challenge)
-                yieldAll(extra.asSequence())
-            }.toList()
-            val message = ByteArray(parts.map { it.size }.sum() + 1)
+        fun execute(realm: Realm, password: CharArray, cs: CredentialStore, callback: PasswordCallback, vararg extra: ByteArray) {
+            Sphinx.Challenge(password).use { challenge ->
+                val parts = sequence {
+                    yield(realm.hash(cs))
+                    yield(challenge.challenge)
+                    yieldAll(extra.asSequence())
+                }.toList()
+                val message = ByteArray(parts.map { it.size }.sum() + 1)
 
-            message[0] = code
-            parts.fold(1) { offset, part ->
-                val ps = part.size
-                System.arraycopy(part, 0, message, offset, ps)
-                offset + ps
+                message[0] = code
+                parts.fold(1) { offset, part ->
+                    val ps = part.size
+                    System.arraycopy(part, 0, message, offset, ps)
+                    offset + ps
+                }
+
+                doSphinx(message, realm, challenge, cs, callback)
             }
-
-            doSphinx(message, realm, challenge, cs, callback)
         }
 
         @ExperimentalUnsignedTypes
@@ -67,18 +69,17 @@ class Protocol {
             val rule = (CharacterClass.serialize(charClasses).toInt() shl RULE_SHIFT) or (size and SIZE_MASK)
             val ruleBytes = byteArrayOf(((rule and 0xFF00) shr 8).toByte(), (rule and 0xFF).toByte())
             val encryptedRule = secretBox(ruleBytes, cs.ruleKey)
-            val challenge = Sphinx.Challenge(password)
-            Command.CREATE.execute(realm, challenge, cs, callback, encryptedRule, skToPk(cs.key))
+            Command.CREATE.execute(realm, password, cs, callback, encryptedRule, skToPk(cs.key))
         }
 
         @ExperimentalUnsignedTypes
         fun get(password: CharArray, realm: Realm, cs: CredentialStore, callback: PasswordCallback) {
-            Command.GET.execute(realm, Sphinx.Challenge(password), cs, callback)
+            Command.GET.execute(realm, password, cs, callback)
         }
 
         @ExperimentalUnsignedTypes
         fun change(password: CharArray, realm: Realm, cs: CredentialStore, callback: PasswordCallback) {
-            Command.CHANGE.execute(realm, Sphinx.Challenge(password), cs, callback)
+            Command.CHANGE.execute(realm, password, cs, callback)
         }
 
         @ExperimentalUnsignedTypes

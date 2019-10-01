@@ -18,7 +18,7 @@ class Sphinx {
         @JvmStatic private external fun finish(password: ByteArray, blindingFactor: ByteArray, resp: ByteArray): ByteArray
     }
 
-    class Challenge(pwd: CharArray) {
+    class Challenge(pwd: CharArray) : AutoCloseable {
         private val blindingFactor: ByteArray = ByteArray(SPHINX_255_SCALAR_BYTES)
         val challenge: ByteArray = ByteArray(SPHINX_255_SER_BYTES)
         private val passwordBytes = toBytes(pwd)
@@ -29,6 +29,10 @@ class Sphinx {
 
         fun finish(response: ByteArray): ByteArray {
             return finish(passwordBytes, blindingFactor, response)
+        }
+
+        override fun close() {
+            challenge.fill(0)
         }
     }
 }
