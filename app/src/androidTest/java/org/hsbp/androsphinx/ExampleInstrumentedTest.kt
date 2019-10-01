@@ -88,7 +88,7 @@ class ExampleInstrumentedTest {
         NaCl.sodium()
         val cs = MockCredentialStore()
         val username = "network"
-        val hostname = "test.tld"
+        val hostname = "test${System.currentTimeMillis()}.tld"
         val realm = Protocol.Realm(username, hostname)
         val charClasses = setOf(CharacterClass.LOWER, CharacterClass.DIGITS)
         val size = 18
