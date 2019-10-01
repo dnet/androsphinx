@@ -10,7 +10,6 @@ class Protocol {
     enum class Command(private val code: Byte) {
         CREATE(0x00), GET(0x66), COMMIT(0x99.toByte()), CHANGE(0xAA.toByte()), DELETE(0xFF.toByte());
 
-        @ExperimentalUnsignedTypes
         fun execute(realm: Realm, password: CharArray, cs: CredentialStore, callback: PasswordCallback, vararg extra: ByteArray) {
             Sphinx.Challenge(password).use { challenge ->
                 val parts = sequence {
@@ -63,7 +62,6 @@ class Protocol {
     }
 
     companion object {
-        @ExperimentalUnsignedTypes
         fun create(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
                    cs: CredentialStore, callback: PasswordCallback, size: Int = 0) {
             val rule = (CharacterClass.serialize(charClasses).toInt() shl RULE_SHIFT) or (size and SIZE_MASK)
@@ -72,12 +70,10 @@ class Protocol {
             Command.CREATE.execute(realm, password, cs, callback, ruleNonce, ruleCipherText, skToPk(cs.key))
         }
 
-        @ExperimentalUnsignedTypes
         fun get(password: CharArray, realm: Realm, cs: CredentialStore, callback: PasswordCallback) {
             Command.GET.execute(realm, password, cs, callback)
         }
 
-        @ExperimentalUnsignedTypes
         fun change(password: CharArray, realm: Realm, cs: CredentialStore, callback: PasswordCallback) {
             Command.CHANGE.execute(realm, password, cs, callback)
         }
@@ -109,7 +105,6 @@ val Protocol.CredentialStore.ruleKey
 
 const val ENCRYPTED_RULE_LENGTH: Int = 42
 
-@ExperimentalUnsignedTypes
 private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphinx.Challenge,
                      cs: Protocol.CredentialStore, callback: Protocol.PasswordCallback) {
     val payload = communicateWithServer(message, cs)

@@ -25,7 +25,6 @@ const val DERIVED_ULSD_20 = "jT1'GCa@7]]|2w!3E*B="
 
 class ExampleUnitTest {
     @Test
-    @ExperimentalUnsignedTypes
     fun encodingTest() {
         val rwd = Base64.getDecoder().decode(RWD_INPUT)
 

@@ -23,7 +23,6 @@ enum class CharacterClass(private val bit: Byte, internal val range: Set<Char>) 
             values().filterTo(EnumSet.noneOf(CharacterClass::class.java)) {
                 it.bit and serialized == it.bit }
 
-        @ExperimentalUnsignedTypes
         fun derive(rwd: ByteArray, rule: Set<CharacterClass>, size: Int): CharArray {
             val order = arrayOf(SYMBOLS, UPPER, LOWER, DIGITS)
             val chars = order.filter(rule::contains).flatMap { it.range.sorted() }.toList()
@@ -31,18 +30,17 @@ enum class CharacterClass(private val bit: Byte, internal val range: Set<Char>) 
             return if (size > 0) subArrayWithCleaning(password, size) else password
         }
 
-        @ExperimentalUnsignedTypes
         private fun encode(raw: ByteArray, chars: List<Char>): CharArray {
             val l = raw.size
             val r = l.rem(4)
             val input = if (r == 0) raw else raw + ByteArray(r) { 0 }
             val ib = ByteBuffer.wrap(input).order(ByteOrder.BIG_ENDIAN).asIntBuffer()
-            val charSize = chars.size.toUInt()
+            val charSize = chars.size.toLong()
             val outFact = log(0x100000000.toDouble(), charSize.toDouble()).toInt() + 1
             val out = CharArray(outFact * ib.capacity())
             var index = 0
             while (ib.hasRemaining()) {
-                var word = ib.get().toUInt()
+                var word = ib.get().toLong() and 0xFFFFFFFF
                 repeat(outFact) {
                     out[index++] = chars[word.rem(charSize).toInt()]
                     word /= charSize
