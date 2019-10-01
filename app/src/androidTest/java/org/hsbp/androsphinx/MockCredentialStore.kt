@@ -13,7 +13,7 @@ class MockCredentialStore : Protocol.CredentialStore {
     private val users = mutableMapOf<BigInteger, MutableSet<String>>()
 
     override val host: String
-        get() = "192.168.1.198"
+        get() = "10.0.2.2"
 
     override val port: Int
         get() = 2355
