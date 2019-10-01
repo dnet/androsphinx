@@ -149,4 +149,104 @@ class ExampleInstrumentedTest {
             // success
         }
     }
+
+    @Test
+    fun readEvalPrintLoopTest() {
+        NaCl.sodium()
+        ServerSocket(2355).accept().use { socket ->
+            val br = socket.getInputStream().bufferedReader()
+            val pw = PrintWriter(socket.getOutputStream().writer())
+            val cs = MockCredentialStore()
+
+            while (true) {
+                pw.write("ASREPL> ")
+                pw.flush()
+                val cmd = br.readLine() ?: break
+                processCommand(cmd, pw, cs)
+            }
+        }
+    }
+}
+
+private fun processCommand(cmd: String, pw: PrintWriter, cs: Protocol.CredentialStore) {
+    if (cmd == "help") {
+        pw.println("Available commands:")
+        pw.println()
+        pw.println("create <master password> <user> <site> [u][l][d][s] [<size>]")
+        pw.println("<get|change> <master password> <user> <site>")
+        pw.println("<commit|delete> <user> <site>")
+        pw.println("list <site>")
+        return
+    }
+
+    val parts = cmd.split(' ')
+    if (parts.size < 2) {
+        pw.println("Not enough arguments or unknown command")
+        return
+    }
+
+    val passwordCallback = object : Protocol.PasswordCallback {
+        override fun passwordReceived(password: CharArray) {
+            pw.println(String(password))
+        }
+    }
+
+    val oneWayCallback = object : Protocol.OneWayCallback {
+        override fun commandCompleted() {
+            pw.println("committed")
+        }
+    }
+
+    try {
+        when (parts[0]) {
+            "create" -> {
+                if (parts.size < 5) {
+                    pw.println("Not enough arguments")
+                }
+                try {
+                    val size = if (parts.size > 5) parts[5].toInt() else 0
+                    val ccs = parts[4].toLowerCase()
+                    val cc = CharacterClass.values().filterTo(
+                        EnumSet.noneOf(
+                            CharacterClass::class.java
+                        )
+                    ) { it.name[0].toLowerCase() in ccs }
+                    Protocol.create(
+                        parts[1].toCharArray(), Protocol.Realm(parts[2], parts[3]),
+                        cc, cs, passwordCallback, size
+                    )
+                } catch (e: NumberFormatException) {
+                    pw.println("Invalid size")
+                }
+            }
+            "get", "change" -> {
+                if (parts.size < 4) {
+                    pw.println("Not enough arguments")
+                }
+                val realm = Protocol.Realm(parts[2], parts[3])
+                if (parts[0] == "get") {
+                    Protocol.get(parts[1].toCharArray(), realm, cs, passwordCallback)
+                } else {
+                    Protocol.change(parts[1].toCharArray(), realm, cs, passwordCallback)
+                }
+            }
+            "commit", "delete" -> {
+                if (parts.size < 3) {
+                    pw.println("Not enough arguments")
+                }
+                val realm = Protocol.Realm(parts[1], parts[2])
+                if (parts[0] == "commit") {
+                    Protocol.commit(realm, cs, oneWayCallback)
+                } else {
+                    Protocol.delete(realm, cs)
+                }
+            }
+            "list" -> {
+                Protocol.list(parts[1], cs).forEach(pw::println)
+            }
+            else -> pw.println("Unknown command")
+        }
+    } catch (s: Protocol.ServerFailureException) {
+        pw.println("Server failure")
+    }
 }
