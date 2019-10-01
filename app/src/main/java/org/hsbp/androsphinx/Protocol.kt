@@ -119,8 +119,7 @@ private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphin
     }
 
     val encryptedRule = payload.sliceArray(DECAF_255_SER_BYTES until payload.size)
-    val ruleBytes = secretBoxOpen(encryptedRule.sliceArray(24 until encryptedRule.size),
-        encryptedRule.sliceArray(0 until 24), cs.ruleKey)
+    val ruleBytes = secretBoxOpen(encryptedRule, cs.ruleKey)
     val combined = (ruleBytes[0].toInt() shl 8) or ruleBytes[1].toInt()
     val size = combined and SIZE_MASK
     val rule = CharacterClass.parse((combined shr RULE_SHIFT).toByte())
