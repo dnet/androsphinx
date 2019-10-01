@@ -68,8 +68,8 @@ class Protocol {
                    cs: CredentialStore, callback: PasswordCallback, size: Int = 0) {
             val rule = (CharacterClass.serialize(charClasses).toInt() shl RULE_SHIFT) or (size and SIZE_MASK)
             val ruleBytes = byteArrayOf(((rule and 0xFF00) shr 8).toByte(), (rule and 0xFF).toByte())
-            val encryptedRule = secretBox(ruleBytes, cs.ruleKey)
-            Command.CREATE.execute(realm, password, cs, callback, encryptedRule, skToPk(cs.key))
+            val (ruleNonce, ruleCipherText) = secretBox(ruleBytes, cs.ruleKey)
+            Command.CREATE.execute(realm, password, cs, callback, ruleNonce, ruleCipherText, skToPk(cs.key))
         }
 
         @ExperimentalUnsignedTypes

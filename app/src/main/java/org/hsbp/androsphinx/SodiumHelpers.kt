@@ -17,11 +17,11 @@ fun genericHash(src: ByteArray, key: ByteArray): ByteArray {
     return result
 }
 
-fun secretBox(plainText: ByteArray, key: ByteArray): ByteArray {
+fun secretBox(plainText: ByteArray, key: ByteArray): Pair<ByteArray, ByteArray> {
     val cipherText = ByteArray(plainText.size + Sodium.crypto_box_macbytes())
     val nonce = randomBytes(Sodium.crypto_secretbox_noncebytes())
     Sodium.crypto_secretbox_easy(cipherText, plainText, plainText.size, nonce, key)
-    return nonce + cipherText
+    return nonce to cipherText
 }
 
 fun randomBytes(size: Int): ByteArray {
