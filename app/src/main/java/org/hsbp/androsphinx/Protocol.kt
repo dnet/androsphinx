@@ -1,6 +1,5 @@
 package org.hsbp.androsphinx
 
-import java.lang.IllegalStateException
 import java.lang.RuntimeException
 import java.net.Socket
 
