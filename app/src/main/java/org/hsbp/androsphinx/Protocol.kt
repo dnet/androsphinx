@@ -108,17 +108,7 @@ const val ENCRYPTED_RULE_LENGTH: Int = 42
 @ExperimentalUnsignedTypes
 private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphinx.Challenge?,
                      cs: Protocol.CredentialStore, callback: Protocol.Callback) {
-    val signed = cryptoSign(message, cs.key)
-    val data = Socket(cs.host, cs.port).use { s ->
-        s.getOutputStream().write(signed)
-        s.getInputStream().readBytes()
-    }
-    val payload = cryptoSignOpen(data, cs.serverPublicKey)
-    if (!payload.contentEquals("ok".toByteArray()) &&
-        (payload.sliceArray(0 until payload.size - ENCRYPTED_RULE_LENGTH).contentEquals("fail".toByteArray())
-                || payload.size != DECAF_255_SER_BYTES + ENCRYPTED_RULE_LENGTH)) {
-        throw RuntimeException("Server failure")
-    }
+    val payload = communicateWithServer(message, cs)
     if (challenge == null) {
         callback.commandCompleted()
         return
@@ -136,4 +126,20 @@ private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphin
     val size = combined and SIZE_MASK
     val rule = CharacterClass.parse((combined shr RULE_SHIFT).toByte())
     callback.passwordReceived(CharacterClass.derive(rwd, rule, size))
+}
+
+private fun communicateWithServer(message: ByteArray, cs: Protocol.CredentialStore): ByteArray {
+    val signed = cryptoSign(message, cs.key)
+    val data = Socket(cs.host, cs.port).use { s ->
+        s.getOutputStream().write(signed)
+        s.getInputStream().readBytes()
+    }
+    val payload = cryptoSignOpen(data, cs.serverPublicKey)
+    if (!payload.contentEquals("ok".toByteArray()) &&
+        (payload.sliceArray(0 until payload.size - ENCRYPTED_RULE_LENGTH).contentEquals("fail".toByteArray())
+                || payload.size != DECAF_255_SER_BYTES + ENCRYPTED_RULE_LENGTH)
+    ) {
+        throw RuntimeException("Server failure")
+    }
+    return payload
 }
