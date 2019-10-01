@@ -43,6 +43,8 @@ class Protocol {
         fun hash(cs: CredentialStore) = cs.hashId(username + hostname)
     }
 
+    class ServerFailureException : RuntimeException()
+
     interface CredentialStore {
         val key: ByteArray
         val salt: ByteArray
@@ -117,7 +119,7 @@ private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphin
     val payload = communicateWithServer(message, cs)
     if (payload.sliceArray(0 until payload.size - ENCRYPTED_RULE_LENGTH).equalsString("fail")
                 || payload.size != DECAF_255_SER_BYTES + ENCRYPTED_RULE_LENGTH) {
-        throw RuntimeException("Server failure")
+        throw Protocol.ServerFailureException()
     }
     val rwd = challenge.finish(payload.sliceArray(0 until DECAF_255_SER_BYTES))
 
@@ -141,7 +143,7 @@ private fun doSphinx(message: ByteArray,
     if (payload.equalsString("ok")) {
         callback.commandCompleted()
     } else {
-        throw RuntimeException("Server failure")
+        throw Protocol.ServerFailureException()
     }
 }
 
