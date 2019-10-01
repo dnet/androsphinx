@@ -83,6 +83,7 @@ class ExampleInstrumentedTest {
     }
 
     @Test
+    @ExperimentalUnsignedTypes
     fun sphinxNetworkTest() {
         NaCl.sodium()
         val cs = MockCredentialStore()
