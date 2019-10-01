@@ -135,11 +135,13 @@ private fun communicateWithServer(message: ByteArray, cs: Protocol.CredentialSto
         s.getInputStream().readBytes()
     }
     val payload = cryptoSignOpen(data, cs.serverPublicKey)
-    if (!payload.contentEquals("ok".toByteArray()) &&
-        (payload.sliceArray(0 until payload.size - ENCRYPTED_RULE_LENGTH).contentEquals("fail".toByteArray())
+    if (!payload.equalsString("ok") &&
+        (payload.sliceArray(0 until payload.size - ENCRYPTED_RULE_LENGTH).equalsString("fail")
                 || payload.size != DECAF_255_SER_BYTES + ENCRYPTED_RULE_LENGTH)
     ) {
         throw RuntimeException("Server failure")
     }
     return payload
 }
+
+private fun ByteArray.equalsString(other: String): Boolean = contentEquals(other.toByteArray())
