@@ -112,5 +112,42 @@ class ExampleInstrumentedTest {
 
         Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
         assertArrayEquals(pw, callback.gotPassword)
+
+        callback.gotPassword = null
+
+        Protocol.change("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
+        val pw2 = callback.gotPassword!!
+        assertFalse(pw.contentEquals(pw2))
+
+        callback.gotPassword = null
+
+        Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
+        assertArrayEquals(pw, callback.gotPassword)
+
+        val oneWayCallback = object : Protocol.OneWayCallback {
+            var called = false
+
+            override fun commandCompleted() {
+                called = true
+            }
+        }
+
+        Protocol.commit(realm, cs, oneWayCallback)
+        assert(oneWayCallback.called)
+
+        callback.gotPassword = null
+
+        Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
+        assertArrayEquals(pw2, callback.gotPassword)
+
+        Protocol.delete(realm, cs)
+        assert(Protocol.list(hostname, cs).isEmpty())
+
+        try {
+            Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
+            fail("RuntimeException should've been thrown")
+        } catch (e: Protocol.ServerFailureException) {
+            // success
+        }
     }
 }
