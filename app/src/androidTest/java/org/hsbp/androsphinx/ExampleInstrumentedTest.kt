@@ -144,7 +144,7 @@ class ExampleInstrumentedTest {
 
         try {
             Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
-            fail("RuntimeException should've been thrown")
+            fail("ServerFailureException should've been thrown")
         } catch (e: Protocol.ServerFailureException) {
             // success
         }
