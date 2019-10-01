@@ -32,7 +32,6 @@ class Protocol {
             }
         }
 
-        @ExperimentalUnsignedTypes
         fun execute(realm: Realm, cs: CredentialStore, callback: OneWayCallback) {
             val message = byteArrayOf(code) + realm.hash(cs)
             doSphinx(message, cs, callback)
@@ -84,12 +83,10 @@ class Protocol {
             Command.CHANGE.execute(realm, password, cs, callback)
         }
 
-        @ExperimentalUnsignedTypes
         fun commit(realm: Realm, cs: CredentialStore, callback: OneWayCallback) {
             Command.COMMIT.execute(realm, cs, callback)
         }
 
-        @ExperimentalUnsignedTypes
         fun delete(realm: Realm, cs: CredentialStore) {
             val callback = object : OneWayCallback {
                 override fun commandCompleted() {
@@ -136,7 +133,6 @@ private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphin
     callback.passwordReceived(CharacterClass.derive(rwd, rule, size))
 }
 
-@ExperimentalUnsignedTypes
 private fun doSphinx(message: ByteArray,
                      cs: Protocol.CredentialStore, callback: Protocol.OneWayCallback) {
     val payload = communicateWithServer(message, cs)
