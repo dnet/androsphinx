@@ -106,6 +106,7 @@ class ExampleInstrumentedTest {
         val pw = callback.gotPassword!!
         assertEquals(size, pw.size)
         assert(pw.all { pwChar -> charClasses.any { it.range.contains(pwChar) } })
+        assert(Protocol.list(hostname, cs).contains(username))
 
         callback.gotPassword = null
 
