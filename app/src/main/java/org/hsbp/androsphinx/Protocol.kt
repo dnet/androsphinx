@@ -103,6 +103,7 @@ fun Protocol.CredentialStore.hashId(hostname: String): ByteArray {
 val Protocol.CredentialStore.ruleKey
     get() = genericHash(key, salt)
 
+const val ENCRYPTED_RULE_LENGTH: Int = 42
 
 @ExperimentalUnsignedTypes
 private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphinx.Challenge?,
@@ -114,8 +115,8 @@ private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphin
     }
     val payload = cryptoSignOpen(data, cs.serverPublicKey)
     if (!payload.contentEquals("ok".toByteArray()) &&
-        (payload.sliceArray(0 until payload.size - 42).contentEquals("fail".toByteArray())
-                || payload.size != DECAF_255_SER_BYTES + 42)) {
+        (payload.sliceArray(0 until payload.size - ENCRYPTED_RULE_LENGTH).contentEquals("fail".toByteArray())
+                || payload.size != DECAF_255_SER_BYTES + ENCRYPTED_RULE_LENGTH)) {
         throw RuntimeException("Server failure")
     }
     if (challenge == null) {
