@@ -92,12 +92,8 @@ class ExampleInstrumentedTest {
         val realm = Protocol.Realm(username, hostname)
         val charClasses = setOf(CharacterClass.LOWER, CharacterClass.DIGITS)
         val size = 18
-        val callback = object : Protocol.Callback {
+        val callback = object : Protocol.PasswordCallback {
             var gotPassword: CharArray? = null
-
-            override fun commandCompleted() {
-                throw IllegalStateException()
-            }
 
             override fun passwordReceived(password: CharArray) {
                 gotPassword = password

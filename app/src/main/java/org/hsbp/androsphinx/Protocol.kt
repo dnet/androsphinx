@@ -12,10 +12,10 @@ class Protocol {
         CREATE(0x00), GET(0x66), COMMIT(0x99.toByte()), CHANGE(0xAA.toByte()), DELETE(0xFF.toByte());
 
         @ExperimentalUnsignedTypes
-        fun execute(realm: Realm, challenge: Sphinx.Challenge?, cs: CredentialStore, callback: Callback, vararg extra: ByteArray) {
+        fun execute(realm: Realm, challenge: Sphinx.Challenge, cs: CredentialStore, callback: PasswordCallback, vararg extra: ByteArray) {
             val parts = sequence {
                 yield(realm.hash(cs))
-                if (challenge != null) yield(challenge.challenge)
+                yield(challenge.challenge)
                 yieldAll(extra.asSequence())
             }.toList()
             val message = ByteArray(parts.map { it.size }.sum() + 1)
@@ -28,6 +28,12 @@ class Protocol {
             }
 
             doSphinx(message, realm, challenge, cs, callback)
+        }
+
+        @ExperimentalUnsignedTypes
+        fun execute(realm: Realm, cs: CredentialStore, callback: OneWayCallback) {
+            val message = byteArrayOf(code) + realm.hash(cs)
+            doSphinx(message, cs, callback)
         }
     }
 
@@ -46,15 +52,18 @@ class Protocol {
         fun deleteUser(hostId: ByteArray, username: String)
     }
 
-    interface Callback {
+    interface PasswordCallback {
         fun passwordReceived(password: CharArray)
+    }
+
+    interface OneWayCallback {
         fun commandCompleted()
     }
 
     companion object {
         @ExperimentalUnsignedTypes
         fun create(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
-                   cs: CredentialStore, callback: Callback, size: Int = 0) {
+                   cs: CredentialStore, callback: PasswordCallback, size: Int = 0) {
             val rule = (CharacterClass.serialize(charClasses).toInt() shl RULE_SHIFT) or (size and SIZE_MASK)
             val ruleBytes = byteArrayOf(((rule and 0xFF00) shr 8).toByte(), (rule and 0xFF).toByte())
             val encryptedRule = secretBox(ruleBytes, cs.ruleKey)
@@ -63,32 +72,28 @@ class Protocol {
         }
 
         @ExperimentalUnsignedTypes
-        fun get(password: CharArray, realm: Realm, cs: CredentialStore, callback: Callback) {
+        fun get(password: CharArray, realm: Realm, cs: CredentialStore, callback: PasswordCallback) {
             Command.GET.execute(realm, Sphinx.Challenge(password), cs, callback)
         }
 
         @ExperimentalUnsignedTypes
-        fun change(password: CharArray, realm: Realm, cs: CredentialStore, callback: Callback) {
+        fun change(password: CharArray, realm: Realm, cs: CredentialStore, callback: PasswordCallback) {
             Command.CHANGE.execute(realm, Sphinx.Challenge(password), cs, callback)
         }
 
         @ExperimentalUnsignedTypes
-        fun commit(realm: Realm, cs: CredentialStore, callback: Callback) {
-            Command.COMMIT.execute(realm, null, cs, callback)
+        fun commit(realm: Realm, cs: CredentialStore, callback: OneWayCallback) {
+            Command.COMMIT.execute(realm, cs, callback)
         }
 
         @ExperimentalUnsignedTypes
         fun delete(realm: Realm, cs: CredentialStore) {
-            val callback = object : Callback {
+            val callback = object : OneWayCallback {
                 override fun commandCompleted() {
                     cs.deleteUser(cs.hashId(realm.hostname), realm.username)
                 }
-
-                override fun passwordReceived(password: CharArray) {
-                    throw IllegalStateException()
-                }
             }
-            Command.DELETE.execute(realm, null, cs, callback)
+            Command.DELETE.execute(realm, cs, callback)
         }
 
         fun list(hostname: String, cs: CredentialStore): List<String> =
@@ -106,12 +111,12 @@ val Protocol.CredentialStore.ruleKey
 const val ENCRYPTED_RULE_LENGTH: Int = 42
 
 @ExperimentalUnsignedTypes
-private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphinx.Challenge?,
-                     cs: Protocol.CredentialStore, callback: Protocol.Callback) {
+private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphinx.Challenge,
+                     cs: Protocol.CredentialStore, callback: Protocol.PasswordCallback) {
     val payload = communicateWithServer(message, cs)
-    if (challenge == null) {
-        callback.commandCompleted()
-        return
+    if (payload.sliceArray(0 until payload.size - ENCRYPTED_RULE_LENGTH).equalsString("fail")
+                || payload.size != DECAF_255_SER_BYTES + ENCRYPTED_RULE_LENGTH) {
+        throw RuntimeException("Server failure")
     }
     val rwd = challenge.finish(payload.sliceArray(0 until DECAF_255_SER_BYTES))
 
@@ -128,20 +133,24 @@ private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphin
     callback.passwordReceived(CharacterClass.derive(rwd, rule, size))
 }
 
+@ExperimentalUnsignedTypes
+private fun doSphinx(message: ByteArray,
+                     cs: Protocol.CredentialStore, callback: Protocol.OneWayCallback) {
+    val payload = communicateWithServer(message, cs)
+    if (payload.equalsString("ok")) {
+        callback.commandCompleted()
+    } else {
+        throw RuntimeException("Server failure")
+    }
+}
+
 private fun communicateWithServer(message: ByteArray, cs: Protocol.CredentialStore): ByteArray {
     val signed = cryptoSign(message, cs.key)
     val data = Socket(cs.host, cs.port).use { s ->
         s.getOutputStream().write(signed)
         s.getInputStream().readBytes()
     }
-    val payload = cryptoSignOpen(data, cs.serverPublicKey)
-    if (!payload.equalsString("ok") &&
-        (payload.sliceArray(0 until payload.size - ENCRYPTED_RULE_LENGTH).equalsString("fail")
-                || payload.size != DECAF_255_SER_BYTES + ENCRYPTED_RULE_LENGTH)
-    ) {
-        throw RuntimeException("Server failure")
-    }
-    return payload
+    return cryptoSignOpen(data, cs.serverPublicKey)
 }
 
 private fun ByteArray.equalsString(other: String): Boolean = contentEquals(other.toByteArray())
