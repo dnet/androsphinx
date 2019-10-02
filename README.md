@@ -40,6 +40,7 @@ Dependencies
  - Gradle (included)
  - libsodium headers (only needed for building `libsphinx.so`, Debian/Ubuntu package: `libsodium-dev`)
  - libsodium-jni https://github.com/joshjdevl/libsodium-jni (referenced via Gradle dependency)
+ - anything needed to build the Decaf elliptic curve library (Python, host C compiler)
 
 QR code format
 --------------
