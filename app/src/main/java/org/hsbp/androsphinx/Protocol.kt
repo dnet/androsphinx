@@ -2,6 +2,8 @@ package org.hsbp.androsphinx
 
 import java.lang.RuntimeException
 import java.net.Socket
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 const val SIZE_MASK: Int = 0x7F
 const val RULE_SHIFT: Int = 7
@@ -66,7 +68,7 @@ class Protocol {
                    cs: CredentialStore, callback: PasswordCallback, size: Int = 0) {
             require(charClasses.isNotEmpty()) { "At least one character class must be allowed." }
             val rule = (CharacterClass.serialize(charClasses).toInt() shl RULE_SHIFT) or (size and SIZE_MASK)
-            val ruleBytes = byteArrayOf(((rule and 0xFF00) shr 8).toByte(), (rule and 0xFF).toByte())
+            val ruleBytes = ByteBuffer.allocate(2).order(ByteOrder.BIG_ENDIAN).putShort(rule.toShort()).array()
             val (ruleNonce, ruleCipherText) = secretBox(ruleBytes, cs.ruleKey)
             Command.CREATE.execute(realm, password, cs, callback, ruleNonce, ruleCipherText, skToPk(cs.key))
         }
@@ -121,7 +123,7 @@ private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphin
 
     val encryptedRule = payload.sliceArray(DECAF_255_SER_BYTES until payload.size)
     val ruleBytes = secretBoxOpen(encryptedRule, cs.ruleKey)
-    val combined = ((ruleBytes[0].toInt() and 0xFF) shl 8) or (ruleBytes[1].toInt() and 0xFF)
+    val combined = ByteBuffer.wrap(ruleBytes).order(ByteOrder.BIG_ENDIAN).getShort().toInt()
     val size = combined and SIZE_MASK
     val rule = CharacterClass.parse((combined shr RULE_SHIFT).toByte())
     callback.passwordReceived(CharacterClass.derive(rwd, rule, size))
