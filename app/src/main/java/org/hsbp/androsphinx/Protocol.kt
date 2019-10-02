@@ -64,6 +64,7 @@ class Protocol {
     companion object {
         fun create(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
                    cs: CredentialStore, callback: PasswordCallback, size: Int = 0) {
+            require(charClasses.isNotEmpty()) { "At least one character class must be allowed." }
             val rule = (CharacterClass.serialize(charClasses).toInt() shl RULE_SHIFT) or (size and SIZE_MASK)
             val ruleBytes = byteArrayOf(((rule and 0xFF00) shr 8).toByte(), (rule and 0xFF).toByte())
             val (ruleNonce, ruleCipherText) = secretBox(ruleBytes, cs.ruleKey)

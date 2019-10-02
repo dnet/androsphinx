@@ -24,6 +24,7 @@ enum class CharacterClass(private val bit: Byte, internal val range: Set<Char>) 
                 it.bit and serialized == it.bit }
 
         fun derive(rwd: ByteArray, rule: Set<CharacterClass>, size: Int): CharArray {
+            require(rule.isNotEmpty()) { "At least one character class must be allowed." }
             val order = arrayOf(SYMBOLS, UPPER, LOWER, DIGITS)
             val chars = order.filter(rule::contains).flatMap { it.range.sorted() }.toList()
             val password = encode(rwd, chars)
