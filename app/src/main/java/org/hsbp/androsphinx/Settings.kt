@@ -14,6 +14,8 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import com.google.zxing.integration.android.IntentIntegrator
 import org.libsodium.jni.Sodium
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,13 +41,12 @@ class SettingsFragment : PreferenceFragmentCompat() {
     @ExperimentalStdlibApi
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         val ir = IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
-        val info = ir.byteSegments0
+        val info = ByteBuffer.wrap(ir.byteSegments0).order(ByteOrder.BIG_ENDIAN)
 
         try {
-            val pkBytes = Sodium.crypto_sign_publickeybytes()
-            val pk = info.sliceArray(0 until pkBytes)
-            val port = (info[pkBytes].toInt() shl 8) or info[pkBytes + 1].toInt()
-            val host = info.decodeToString(startIndex = pkBytes + 2)
+            val pk = info.getByteArray(Sodium.crypto_sign_publickeybytes())
+            val port = info.getShort()
+            val host = info.getByteArray(info.remaining()).decodeToString()
 
             with(preferenceManager) {
                 findPreference<EditTextPreference>(SHARED_PREFERENCES_KEY_HOST)!!.text = host
@@ -59,6 +60,12 @@ class SettingsFragment : PreferenceFragmentCompat() {
             Toast.makeText(context, R.string.scan_qr_error, Toast.LENGTH_LONG).show()
         }
     }
+}
+
+private fun ByteBuffer.getByteArray(length: Int): ByteArray {
+    val result = ByteArray(length)
+    get(result)
+    return result
 }
 
 class IntEditTextPreference : EditTextPreference {
