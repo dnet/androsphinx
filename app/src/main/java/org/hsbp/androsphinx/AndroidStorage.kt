@@ -6,10 +6,12 @@ import android.content.SharedPreferences
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.util.Base64
+import androidx.preference.PreferenceManager
 import java.io.FileNotFoundException
 
 const val SALT_BYTES = 32
-const val SHARED_PREFERENCES_NAME = "androsphinx"
+const val SERVER_PK_BASE64_FLAGS = Base64.NO_WRAP or Base64.NO_PADDING
+
 const val SHARED_PREFERENCES_KEY_HOST = "host"
 const val SHARED_PREFERENCES_KEY_PORT = "port"
 const val SHARED_PREFERENCES_KEY_SERVER_PK = "server_pk"
@@ -49,10 +51,10 @@ class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStor
         get() = sharedPreferences.getInt(SHARED_PREFERENCES_KEY_PORT, 0)
 
     override val serverPublicKey: ByteArray
-        get() = Base64.decode(sharedPreferences.getString(SHARED_PREFERENCES_KEY_SERVER_PK, "")!!, Base64.DEFAULT)
+        get() = Base64.decode(sharedPreferences.getString(SHARED_PREFERENCES_KEY_SERVER_PK, "")!!, SERVER_PK_BASE64_FLAGS)
 
     private val sharedPreferences: SharedPreferences
-        get() = ctx.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE)
+        get() = PreferenceManager.getDefaultSharedPreferences(ctx)
 
     override fun cacheUser(hostId: ByteArray, username: String) {
         UserCache(ctx).writableDatabase.use { db ->
@@ -92,11 +94,11 @@ class UserCache(context: Context) : SQLiteOpenHelper(context, "user_cache", null
 }
 
 fun Context.storeServerInfo(host: String, port: Int, serverPublicKey: ByteArray) {
-    with(getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE).edit()) {
+    with(PreferenceManager.getDefaultSharedPreferences(this).edit()) {
         putString(SHARED_PREFERENCES_KEY_HOST, host)
         putInt(SHARED_PREFERENCES_KEY_PORT, port)
         putString(SHARED_PREFERENCES_KEY_SERVER_PK,
-            Base64.encodeToString(serverPublicKey, Base64.DEFAULT))
+            Base64.encodeToString(serverPublicKey, SERVER_PK_BASE64_FLAGS))
         commit()
     }
 }

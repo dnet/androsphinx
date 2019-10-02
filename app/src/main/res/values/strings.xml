@@ -1,6 +1,12 @@
 <resources>
     <string name="app_name">Androsphinx</string>
-    <string name="scan_qr_btn">Scan server QR code</string>
+    <string name="scan_qr_title">Scan from QR code</string>
+    <string name="scan_qr_summary">Set all the above using the camera of your device</string>
     <string name="scan_qr_done">Server settings have been saved successfully</string>
     <string name="scan_qr_error">"Server settings couldn't be read correctly"</string>
+    <string name="preference_category_server">SPHINX server parameters</string>
+    <string name="preference_host">Hostname</string>
+    <string name="preference_port">Port number</string>
+    <string name="preference_server_pk">Public key</string>
+    <string name="settings">Settings</string>
 </resources>
