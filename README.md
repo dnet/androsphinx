@@ -58,3 +58,41 @@ In the above case, 0x0933 is port 2355 (the default port). Extra care must be
 taken so that the QR encoder also knows about the input being in 8-bit mode.
 In the above example, without the `-8` switch, the output is truncated when
 read by the application.
+
+Testing
+-------
+
+Besides "regular" tests suites running on the host and instrumented ones running
+on Android devices or emulators, there's also a test REPL that can be used to test
+conformity to other implementations such as `pwdsphinx`. To launch this REPL,
+
+ - (Optional) if you want the test suite to connect to a SPHINX server other
+   than the default (host of an Android emulator, default port), modify the
+   class `MockCredentialStore` accordingly.
+ - Start `readEvalPrintLoopTest` from `ExampleInstrumentedTest`, this will
+   listen on TCP port 2355 and wait for a single connection.
+ - (Optional) if you want to tunnel over ADB (useful when using an emulator)
+   set up port forward using `adb forward tcp:X tcp:2355` where `X` will be the
+   port listening on the ADB host.
+ - Now connect to TCP port 2355 on the device (or `X` on localhost if you use
+   ADB port forwarding) and you can issue commands either manually or using an
+   automated client, the protocol is easy to use by humans and programs alike.
+
+There's a built in command list by using the `help` command:
+
+	$ adb forward tcp:23555 tcp:2355
+	23555
+	$ nc localhost 23555
+	ASREPL> help
+	Available commands:
+
+	create <master password> <user> <site> [u][l][d][s] [<size>]
+	<get|change> <master password> <user> <site>
+	<commit|delete> <user> <site>
+	list <site>
+	ASREPL>
+
+The `ASREPL>` is the prompt of the REPL and it signals that the REPL is ready
+for the next command. The syntax is intentionally similar to that of
+`pwdsphinx` except for the master password, which needs to be supplied as a
+parameter for the relevant commands.
