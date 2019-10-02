@@ -12,6 +12,9 @@ import java.io.FileNotFoundException
 const val SALT_BYTES = 32
 const val SERVER_PK_BASE64_FLAGS = Base64.NO_WRAP or Base64.NO_PADDING
 
+const val FILE_NAME_KEY = "key"
+const val FILE_NAME_SALT = "salt"
+
 const val SHARED_PREFERENCES_KEY_HOST = "host"
 const val SHARED_PREFERENCES_KEY_PORT = "port"
 const val SHARED_PREFERENCES_KEY_SERVER_PK = "server_pk"
@@ -25,10 +28,10 @@ const val USERNAME: String = "username"
 
 class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStore {
     override val key: ByteArray
-        get() = loadFileOrGenerate("key", ::cryptoSignKeyPair)
+        get() = loadFileOrGenerate(FILE_NAME_KEY, ::cryptoSignKeyPair)
 
     override val salt: ByteArray
-        get() = loadFileOrGenerate("salt") { randomBytes(SALT_BYTES) }
+        get() = loadFileOrGenerate(FILE_NAME_SALT) { randomBytes(SALT_BYTES) }
 
     private fun loadFileOrGenerate(name: String, generator: () -> ByteArray): ByteArray {
         try {
