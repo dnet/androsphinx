@@ -19,16 +19,12 @@ class Protocol {
                     yield(challenge.challenge)
                     yieldAll(extra.asSequence())
                 }.toList()
-                val message = ByteArray(parts.map { it.size }.sum() + 1)
+                val message = ByteBuffer.allocate(parts.map { it.size }.sum() + 1)
 
-                message[0] = code
-                parts.fold(1) { offset, part ->
-                    val ps = part.size
-                    System.arraycopy(part, 0, message, offset, ps)
-                    offset + ps
-                }
+                message.put(code)
+                parts.forEach { message.put(it) }
 
-                doSphinx(message, realm, challenge, cs, callback)
+                doSphinx(message.array(), realm, challenge, cs, callback)
             }
         }
 
