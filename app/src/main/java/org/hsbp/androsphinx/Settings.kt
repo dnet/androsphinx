@@ -28,6 +28,8 @@ class SettingsActivity : AppCompatActivity() {
     }
 }
 
+const val QR_FLAGS_HAS_KEY_SALT: Int = 1
+
 class SettingsFragment : PreferenceFragmentCompat() {
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.preferences, rootKey)
@@ -44,6 +46,13 @@ class SettingsFragment : PreferenceFragmentCompat() {
         val info = ByteBuffer.wrap(ir.byteSegments0).order(ByteOrder.BIG_ENDIAN)
 
         try {
+            val formatFlags = info.get().toInt()
+            val secrets = if (formatFlags and QR_FLAGS_HAS_KEY_SALT == QR_FLAGS_HAS_KEY_SALT) {
+                listOf(FILE_NAME_KEY to info.getByteArray(Sodium.crypto_sign_secretkeybytes()),
+                    FILE_NAME_SALT to info.getByteArray(SALT_BYTES))
+            } else {
+                emptyList()
+            }
             val pk = info.getByteArray(Sodium.crypto_sign_publickeybytes())
             val port = info.getShort()
             val host = info.getByteArray(info.remaining()).decodeToString()
@@ -52,6 +61,12 @@ class SettingsFragment : PreferenceFragmentCompat() {
                 findPreference<EditTextPreference>(SHARED_PREFERENCES_KEY_HOST)!!.text = host
                 findPreference<IntEditTextPreference>(SHARED_PREFERENCES_KEY_PORT)!!.text = port.toString()
                 findPreference<EditTextPreference>(SHARED_PREFERENCES_KEY_SERVER_PK)!!.text = Base64.encodeToString(pk, SERVER_PK_BASE64_FLAGS)
+            }
+
+            for ((filename, contents) in secrets) {
+                context!!.openFileOutput(filename, Context.MODE_PRIVATE).use {
+                    it.write(contents)
+                }
             }
 
             Toast.makeText(context, R.string.scan_qr_done, Toast.LENGTH_LONG).show()
