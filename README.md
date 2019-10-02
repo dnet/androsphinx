@@ -96,3 +96,8 @@ The `ASREPL>` is the prompt of the REPL and it signals that the REPL is ready
 for the next command. The syntax is intentionally similar to that of
 `pwdsphinx` except for the master password, which needs to be supplied as a
 parameter for the relevant commands.
+
+If you indend to check whether SPHINX entries created by one implementation
+can be read by another, make sure that `key` and `salt` also match the one
+defined in the class `MockCredentialStore`. For example, in `pwdsphinx`, this
+can be found in files `~/.sphinx/{key,salt}`.
