@@ -81,6 +81,28 @@ public final class QRCodeWriter implements Writer {
     return renderResult(code, width, height, quietZone);
   }
 
+  public BitMatrix encode(byte[] contents,
+                          BarcodeFormat format,
+                          int width,
+                          int height) throws WriterException {
+
+    if (contents.length == 0) {
+      throw new IllegalArgumentException("Found empty contents");
+    }
+
+    if (format != BarcodeFormat.QR_CODE) {
+      throw new IllegalArgumentException("Can only encode QR_CODE, but got " + format);
+    }
+
+    if (width < 0 || height < 0) {
+      throw new IllegalArgumentException("Requested dimensions are too small: " + width + 'x' +
+              height);
+    }
+
+    QRCode code = Encoder.encode(contents, ErrorCorrectionLevel.L);
+    return renderResult(code, width, height, QUIET_ZONE_SIZE);
+  }
+
   // Note that the input matrix uses 0 == white, 1 == black, while the output matrix uses
   // 0 == black, 255 == white (i.e. an 8 bit greyscale bitmap).
   private static BitMatrix renderResult(QRCode code, int width, int height, int quietZone) {

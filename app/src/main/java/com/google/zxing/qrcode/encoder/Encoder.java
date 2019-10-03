@@ -165,6 +165,82 @@ public final class Encoder {
     return qrCode;
   }
 
+  public static QRCode encode(byte[] content,
+                              ErrorCorrectionLevel ecLevel) throws WriterException {
+
+    // Pick an encoding mode appropriate for the content. Note that this will not attempt to use
+    // multiple modes / segments even if that were more efficient. Twould be nice.
+    Mode mode = Mode.BYTE;
+
+    // This will store the header information, like mode and
+    // length, as well as "header" segments like an ECI segment.
+    BitArray headerBits = new BitArray();
+
+    // (With ECI in place,) Write the mode marker
+    appendModeInfo(mode, headerBits);
+
+    // Collect data within the main segment, separately, to count its size if needed. Don't add it to
+    // main payload yet.
+    BitArray dataBits = new BitArray();
+    for (byte b : content) {
+      dataBits.appendBits(b, 8);
+    }
+
+    // Hard part: need to know version to know how many bits length takes. But need to know how many
+    // bits it takes to know version. First we take a guess at version by assuming version will be
+    // the minimum, 1:
+
+    int provisionalBitsNeeded = headerBits.getSize()
+            + mode.getCharacterCountBits(Version.getVersionForNumber(1))
+            + dataBits.getSize();
+    Version provisionalVersion = chooseVersion(provisionalBitsNeeded, ecLevel);
+
+    // Use that guess to calculate the right version. I am still not sure this works in 100% of cases.
+
+    int bitsNeeded = headerBits.getSize()
+            + mode.getCharacterCountBits(provisionalVersion)
+            + dataBits.getSize();
+    Version version = chooseVersion(bitsNeeded, ecLevel);
+
+    BitArray headerAndDataBits = new BitArray();
+    headerAndDataBits.appendBitArray(headerBits);
+    // Find "length" of main segment and write it
+    int numLetters = dataBits.getSizeInBytes();
+    appendLengthInfo(numLetters, version, mode, headerAndDataBits);
+    // Put data together into the overall payload
+    headerAndDataBits.appendBitArray(dataBits);
+
+    Version.ECBlocks ecBlocks = version.getECBlocksForLevel(ecLevel);
+    int numDataBytes = version.getTotalCodewords() - ecBlocks.getTotalECCodewords();
+
+    // Terminate the bits properly.
+    terminateBits(numDataBytes, headerAndDataBits);
+
+    // Interleave data bits with error correction code.
+    BitArray finalBits = interleaveWithECBytes(headerAndDataBits,
+            version.getTotalCodewords(),
+            numDataBytes,
+            ecBlocks.getNumBlocks());
+
+    QRCode qrCode = new QRCode();
+
+    qrCode.setECLevel(ecLevel);
+    qrCode.setMode(mode);
+    qrCode.setVersion(version);
+
+    //  Choose the mask pattern and set to "qrCode".
+    int dimension = version.getDimensionForVersion();
+    ByteMatrix matrix = new ByteMatrix(dimension, dimension);
+    int maskPattern = chooseMaskPattern(finalBits, ecLevel, version, matrix);
+    qrCode.setMaskPattern(maskPattern);
+
+    // Build the matrix and set it to "qrCode".
+    MatrixUtil.buildMatrix(finalBits, ecLevel, version, maskPattern, matrix);
+    qrCode.setMatrix(matrix);
+
+    return qrCode;
+  }
+
   /**
    * @return the code point of the table used in alphanumeric mode or
    *  -1 if there is no corresponding code in the table.

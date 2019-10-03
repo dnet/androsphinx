@@ -33,6 +33,11 @@ License
 The whole project is licensed under MIT license, see `LICENSE.txt` except for
 the parts included from Google zxing which are under APACHE license.
 
+As required by the Apache license, here are the modifications made in the zxing
+library:
+
+ - added methods to generate 8-bit QR codes from raw `byte[]` objects
+
 Dependencies
 ------------
 
