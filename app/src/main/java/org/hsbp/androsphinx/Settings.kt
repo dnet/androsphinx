@@ -16,6 +16,13 @@ import com.google.zxing.integration.android.IntentIntegrator
 import org.libsodium.jni.Sodium
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import android.graphics.Bitmap
+import android.graphics.Point
+import android.graphics.drawable.BitmapDrawable
+import android.widget.ImageView
+import androidx.appcompat.app.AlertDialog
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.qrcode.QRCodeWriter
 
 class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,6 +36,8 @@ class SettingsActivity : AppCompatActivity() {
 }
 
 const val QR_FLAGS_HAS_KEY_SALT: Int = 1
+const val BLACK: Int = 0xFF000000.toInt()
+const val WHITE: Int = 0xFFFFFFFF.toInt()
 
 class SettingsFragment : PreferenceFragmentCompat() {
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
@@ -36,6 +45,34 @@ class SettingsFragment : PreferenceFragmentCompat() {
         preferenceManager.findPreference<Preference>("scan_qr")!!.setOnPreferenceClickListener {
             IntentIntegrator(this).initiateScan()
             true
+        }
+        ShareType.values().forEach { t ->
+            val p = preferenceManager.findPreference<Preference>(t.key)!!
+            p.setOnPreferenceClickListener {
+                showQR(t.serialize(context!!), p.title)
+                true
+            }
+        }
+    }
+
+    private fun showQR(payload: ByteArray, title: CharSequence) {
+        val display = activity!!.windowManager.defaultDisplay
+        val size = Point()
+        display.getSize(size)
+        val dimension = size.x.coerceAtMost(size.y) / 4 * 3
+        val result = QRCodeWriter().encode(payload, BarcodeFormat.QR_CODE, dimension, dimension)
+        val w = result.width
+        val h = result.height
+        val pixels = IntArray(w * h) { i -> if (result[i.rem(w), i / w]) BLACK else WHITE }
+        val bm = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        bm.setPixels(pixels, 0, w, 0, 0, w, h)
+        with(AlertDialog.Builder(context!!)) {
+            setTitle(title)
+            setView(ImageView(context).apply {
+                setImageDrawable(BitmapDrawable(activity!!.resources, bm))
+            })
+            setNeutralButton(android.R.string.ok, null)
+            show()
         }
     }
 
@@ -74,6 +111,43 @@ class SettingsFragment : PreferenceFragmentCompat() {
             e.printStackTrace()
             Toast.makeText(context, R.string.scan_qr_error, Toast.LENGTH_LONG).show()
         }
+    }
+}
+
+enum class ShareType(private val code: Byte) {
+    @Suppress("UNUSED") PUBLIC(code = 0),
+    @Suppress("UNUSED") PRIVATE(code = 1) {
+        override val privateMaterialSize: Int
+            get() = Sodium.crypto_sign_secretkeybytes() + SALT_BYTES
+
+        override fun providePrivateMaterial(target: ByteBuffer, cs: Protocol.CredentialStore) {
+            target.put(cs.key)
+            target.put(cs.salt)
+        }
+    };
+
+    open fun providePrivateMaterial(target: ByteBuffer, cs: Protocol.CredentialStore) {}
+    open val privateMaterialSize: Int
+        get() = 0
+
+    val key: String
+        get() = "share_qr_${name.toLowerCase()}"
+
+    fun serialize(context: Context): ByteArray {
+        val cs = AndroidCredentialStore(context)
+        val pk = cs.serverPublicKey
+        val hostBytes = cs.host.toByteArray()
+        val info = ByteBuffer.allocate(1 + pk.size + 2 + hostBytes.size + privateMaterialSize)
+
+        with(info) {
+            put(code)
+            providePrivateMaterial(info, cs)
+            put(pk)
+            putShort(cs.port.toShort())
+            put(hostBytes)
+        }
+
+        return info.array()
     }
 }
 

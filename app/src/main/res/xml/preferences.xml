@@ -26,5 +26,13 @@
             android:key="scan_qr"
             android:title="@string/scan_qr_title"
             android:summary="@string/scan_qr_summary" />
+        <Preference
+            android:key="share_qr_public"
+            android:title="@string/share_qr_public_title"
+            android:summary="@string/share_qr_public_summary" />
+        <Preference
+            android:key="share_qr_private"
+            android:title="@string/share_qr_private_title"
+            android:summary="@string/share_qr_private_summary" />
     </PreferenceCategory>
 </PreferenceScreen>

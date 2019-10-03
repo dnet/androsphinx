@@ -9,4 +9,8 @@
     <string name="preference_port">Port number</string>
     <string name="preference_server_pk">Public key</string>
     <string name="settings">Settings</string>
+    <string name="share_qr_public_title">Share as public QR code</string>
+    <string name="share_qr_public_summary">Display public server settings to be read by a friend with a camera to join this server</string>
+    <string name="share_qr_private_title">Share as private QR code</string>
+    <string name="share_qr_private_summary">Display public server settings and private keys to be read by another device of yours with a camera to sync</string>
 </resources>
