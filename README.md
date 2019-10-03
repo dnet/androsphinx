@@ -30,7 +30,8 @@ The resulting debug APK will be here:
 License
 -------
 
-The whole project is licensed under MIT license, see `LICENSE.txt`
+The whole project is licensed under MIT license, see `LICENSE.txt` except for
+the parts included from Google zxing which are under APACHE license.
 
 Dependencies
 ------------
