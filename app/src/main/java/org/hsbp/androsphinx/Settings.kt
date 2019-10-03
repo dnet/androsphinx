@@ -23,6 +23,7 @@ import android.widget.ImageView
 import androidx.appcompat.app.AlertDialog
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
+import java.util.*
 
 class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -131,7 +132,7 @@ enum class ShareType(private val code: Byte) {
         get() = 0
 
     val key: String
-        get() = "share_qr_${name.toLowerCase()}"
+        get() = "share_qr_${name.toLowerCase(Locale.ROOT)}"
 
     fun serialize(context: Context): ByteArray {
         val cs = AndroidCredentialStore(context)
