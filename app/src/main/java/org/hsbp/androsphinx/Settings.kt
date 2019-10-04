@@ -175,5 +175,5 @@ class IntEditTextPreference : EditTextPreference {
     }
 
     override fun getPersistedString(defaultReturnValue: String?): String = getPersistedInt(0).toString()
-    override fun persistString(value: String): Boolean = persistInt(if (value.isEmpty()) 0 else value.toInt())
+    override fun persistString(value: String): Boolean = persistInt(value.toIntOrNull() ?: 0)
 }
