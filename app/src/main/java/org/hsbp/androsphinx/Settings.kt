@@ -6,7 +6,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
 import android.util.AttributeSet
-import android.util.Base64
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.EditTextPreference
@@ -77,6 +76,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
         }
     }
 
+    @Suppress("UsePropertyAccessSyntax")
     @SuppressLint("MissingSuperCall")
     @ExperimentalStdlibApi
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -86,24 +86,24 @@ class SettingsFragment : PreferenceFragmentCompat() {
         try {
             val formatFlags = info.get().toInt()
             val secrets = if (formatFlags and QR_FLAGS_HAS_KEY_SALT == QR_FLAGS_HAS_KEY_SALT) {
-                listOf(FILE_NAME_KEY to info.getByteArray(Sodium.crypto_sign_secretkeybytes()),
-                    FILE_NAME_SALT to info.getByteArray(SALT_BYTES))
+                listOf(FILE_NAME_KEY to Ed25519PrivateKey.fromByteBuffer(info),
+                    FILE_NAME_SALT to Salt.fromByteBuffer(info))
             } else {
                 emptyList()
             }
-            val pk = info.getByteArray(Sodium.crypto_sign_publickeybytes())
+            val pk = Ed25519PublicKey.fromByteBuffer(info)
             val port = info.getShort()
             val host = info.getByteArray(info.remaining()).decodeToString()
 
             with(preferenceManager) {
                 findPreference<EditTextPreference>(SHARED_PREFERENCES_KEY_HOST)!!.text = host
                 findPreference<IntEditTextPreference>(SHARED_PREFERENCES_KEY_PORT)!!.text = port.toString()
-                findPreference<EditTextPreference>(SHARED_PREFERENCES_KEY_SERVER_PK)!!.text = Base64.encodeToString(pk, SERVER_PK_BASE64_FLAGS)
+                findPreference<EditTextPreference>(SHARED_PREFERENCES_KEY_SERVER_PK)!!.text = pk.asBase64
             }
 
-            for ((filename, contents) in secrets) {
+            for ((filename, keyMaterial) in secrets) {
                 context!!.openFileOutput(filename, Context.MODE_PRIVATE).use {
-                    it.write(contents)
+                    it.write(keyMaterial.asBytes)
                 }
             }
 
@@ -122,8 +122,8 @@ enum class ShareType(private val code: Byte) {
             get() = Sodium.crypto_sign_secretkeybytes() + SALT_BYTES
 
         override fun providePrivateMaterial(target: ByteBuffer, cs: Protocol.CredentialStore) {
-            target.put(cs.key)
-            target.put(cs.salt)
+            target.put(cs.key.asBytes)
+            target.put(cs.salt.asBytes)
         }
     };
 
@@ -138,12 +138,12 @@ enum class ShareType(private val code: Byte) {
         val cs = AndroidCredentialStore(context)
         val pk = cs.serverPublicKey
         val hostBytes = cs.host.toByteArray()
-        val info = ByteBuffer.allocate(1 + pk.size + 2 + hostBytes.size + privateMaterialSize)
+        val info = ByteBuffer.allocate(1 + pk.asBytes.size + 2 + hostBytes.size + privateMaterialSize)
 
         with(info) {
             put(code)
             providePrivateMaterial(info, cs)
-            put(pk)
+            put(pk.asBytes)
             putShort(cs.port.toShort())
             put(hostBytes)
         }

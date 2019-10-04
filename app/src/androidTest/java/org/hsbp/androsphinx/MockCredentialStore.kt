@@ -7,7 +7,7 @@ import java.math.BigInteger
 const val MOCK_KEY = "uj+gOoYGyyidDY58ISFaE7tCnj0+lxEGCyswnQLGALvtrdK8WGOkxlhHVicsNg7UKYfjO82p8KCRiYIAs75vBQ=="
 
 @Suppress("SpellCheckingInspection")
-const val SERVER_PK = "OWjZhVy23P7wRpTfZnmnd035BUYx5TdbivGGwD2ItCA="
+const val SERVER_PK = "45eSphbgoJbzB9pG37NJj98cuR6grERC2newnBMDFZ8"
 
 class MockCredentialStore : Protocol.CredentialStore {
     private val users = mutableMapOf<BigInteger, MutableSet<String>>()
@@ -18,14 +18,14 @@ class MockCredentialStore : Protocol.CredentialStore {
     override val port: Int
         get() = 2355
 
-    override val key: ByteArray
-        get() = Base64.decode(MOCK_KEY, Base64.DEFAULT)
+    override val key: Ed25519PrivateKey
+        get() = Ed25519PrivateKey.fromByteArray(Base64.decode(MOCK_KEY, Base64.DEFAULT))
 
-    override val salt: ByteArray
-        get() = key.sliceArray(0 until SALT_BYTES)
+    override val salt: Salt
+        get() = Salt.fromByteArray(Base64.decode(MOCK_KEY, Base64.DEFAULT).sliceArray(0 until SALT_BYTES))
 
-    override val serverPublicKey: ByteArray
-        get() = Base64.decode(SERVER_PK, Base64.DEFAULT)
+    override val serverPublicKey: Ed25519PublicKey
+        get() = Ed25519PublicKey.fromBase64(SERVER_PK)
 
     override fun cacheUser(hostId: ByteArray, username: String) {
         users.getOrPut(BigInteger(hostId), ::mutableSetOf).add(username)

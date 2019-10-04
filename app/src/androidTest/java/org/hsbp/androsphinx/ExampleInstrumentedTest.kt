@@ -13,6 +13,7 @@ import org.libsodium.jni.Sodium
 import java.io.PrintWriter
 import java.lang.NumberFormatException
 import java.net.ServerSocket
+import java.nio.ByteBuffer
 import java.util.*
 
 /**
@@ -42,9 +43,9 @@ class ExampleInstrumentedTest {
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
         val storage = AndroidCredentialStore(appContext)
         val key = storage.key
-        assertEquals(Sodium.crypto_sign_secretkeybytes(), key.size)
-        assertArrayEquals(storage.key, key)
-        assertEquals(SALT_BYTES, storage.salt.size)
+        assertEquals(Sodium.crypto_sign_secretkeybytes(), key.asBytes.size)
+        assertArrayEquals(storage.key.asBytes, key.asBytes)
+        assertEquals(SALT_BYTES, storage.salt.asBytes.size)
 
         val host1 = ByteArray(16) { 1 }
         val host2 = ByteArray(16) { 2 }
@@ -75,26 +76,25 @@ class ExampleInstrumentedTest {
 
         assertEquals("", storage.host)
         assertEquals(0, storage.port)
-        assert(storage.serverPublicKey.isEmpty())
 
         val host = "example.tld"
         val port = 31337
         val serverPublicKey = ByteArray(32) { 3 }
-        appContext.storeServerInfo(host, port, serverPublicKey)
+        appContext.storeServerInfo(host, port, Ed25519PublicKey.fromByteBuffer(ByteBuffer.wrap(serverPublicKey)))
 
         assertEquals(host, storage.host)
         assertEquals(port, storage.port)
-        assertArrayEquals(serverPublicKey, storage.serverPublicKey)
+        assertArrayEquals(serverPublicKey, storage.serverPublicKey.asBytes)
     }
 
     @Test
     fun sodiumHelperTest() {
         NaCl.sodium()
-        val serverSigningPrivateKey = cryptoSignKeyPair()
-        val serverSigningPublicKey = skToPk(serverSigningPrivateKey)
+        val serverSigningPrivateKey = Ed25519PrivateKey.generate()
+        val serverSigningPublicKey = serverSigningPrivateKey.publicKey
         val input = "dataToBeSealed".toByteArray()
-        val sealed = cryptoSeal(input, serverSigningPublicKey)
-        val output = cryptoSealOpen(sealed, serverSigningPrivateKey)
+        val sealed = serverSigningPublicKey.asCurve25519PublicKey.seal(input)
+        val output = serverSigningPrivateKey.asCurve25519PrivateKey.unseal(sealed)
         assertArrayEquals(input, output)
     }
 

@@ -41,11 +41,11 @@ class Protocol {
     class ServerFailureException : RuntimeException()
 
     interface CredentialStore {
-        val key: ByteArray
-        val salt: ByteArray
+        val key: Ed25519PrivateKey
+        val salt: Salt
         val host: String
         val port: Int
-        val serverPublicKey: ByteArray
+        val serverPublicKey: Ed25519PublicKey
         fun getUsers(hostId: ByteArray): List<String>
         fun cacheUser(hostId: ByteArray, username: String)
         fun deleteUser(hostId: ByteArray, username: String)
@@ -65,8 +65,8 @@ class Protocol {
             require(charClasses.isNotEmpty()) { "At least one character class must be allowed." }
             val rule = (CharacterClass.serialize(charClasses).toInt() shl RULE_SHIFT) or (size and SIZE_MASK)
             val ruleBytes = ByteBuffer.allocate(2).order(ByteOrder.BIG_ENDIAN).putShort(rule.toShort()).array()
-            val (ruleNonce, ruleCipherText) = secretBox(ruleBytes, cs.ruleKey)
-            Command.CREATE.execute(realm, password, cs, callback, ruleNonce, ruleCipherText, skToPk(cs.key))
+            val (ruleNonce, ruleCipherText) = cs.ruleKey.encrypt(ruleBytes)
+            Command.CREATE.execute(realm, password, cs, callback, ruleNonce, ruleCipherText, cs.key.publicKey.asBytes)
         }
 
         fun get(password: CharArray, realm: Realm, cs: CredentialStore, callback: PasswordCallback) {
@@ -95,15 +95,14 @@ class Protocol {
     }
 }
 
-fun Protocol.CredentialStore.hashId(hostname: String): ByteArray {
-    return genericHash(hostname.toByteArray(), salt)
-}
+fun Protocol.CredentialStore.hashId(hostname: String): ByteArray = salt.hash(hostname.toByteArray())
 
 val Protocol.CredentialStore.ruleKey
-    get() = genericHash(key, salt)
+    get() = SecretBoxKey.fromByteArray(salt.hash(key.asBytes))
 
 const val ENCRYPTED_RULE_LENGTH: Int = 90
 
+@Suppress("UsePropertyAccessSyntax")
 private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphinx.Challenge,
                      cs: Protocol.CredentialStore, callback: Protocol.PasswordCallback) {
     val payload = communicateWithServer(message, cs)
@@ -118,7 +117,7 @@ private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphin
     }
 
     val encryptedRule = payload.sliceArray(DECAF_255_SER_BYTES until payload.size)
-    val ruleBytes = secretBoxOpen(cryptoSealOpen(encryptedRule, cs.key), cs.ruleKey)
+    val ruleBytes = cs.ruleKey.decrypt(cs.key.asCurve25519PrivateKey.unseal(encryptedRule))
     val combined = ByteBuffer.wrap(ruleBytes).order(ByteOrder.BIG_ENDIAN).getShort().toInt()
     val size = combined and SIZE_MASK
     val rule = CharacterClass.parse((combined shr RULE_SHIFT).toByte())
@@ -136,13 +135,13 @@ private fun doSphinx(message: ByteArray,
 }
 
 private fun communicateWithServer(message: ByteArray, cs: Protocol.CredentialStore): ByteArray {
-    val signed = cryptoSign(message, cs.key)
-    val sealed = cryptoSeal(signed, cs.serverPublicKey)
+    val signed = cs.key.sign(message)
+    val sealed = cs.serverPublicKey.asCurve25519PublicKey.seal(signed)
     val data = Socket(cs.host, cs.port).use { s ->
         s.getOutputStream().write(sealed)
         s.getInputStream().readBytes()
     }
-    return cryptoSignOpen(data, cs.serverPublicKey)
+    return cs.serverPublicKey.verify(data)
 }
 
 private fun ByteArray.equalsString(other: String): Boolean = contentEquals(other.toByteArray())

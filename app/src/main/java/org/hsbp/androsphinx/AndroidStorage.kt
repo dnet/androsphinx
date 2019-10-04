@@ -5,12 +5,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
-import android.util.Base64
 import androidx.preference.PreferenceManager
 import java.io.FileNotFoundException
-
-const val SALT_BYTES = 32
-const val SERVER_PK_BASE64_FLAGS = Base64.NO_WRAP or Base64.NO_PADDING
 
 const val FILE_NAME_KEY = "key"
 const val FILE_NAME_SALT = "salt"
@@ -27,21 +23,21 @@ const val USERNAME: String = "username"
 // TODO encrypt before storage / decrypt after retrieval using Android Key Store
 
 class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStore {
-    override val key: ByteArray
-        get() = loadFileOrGenerate(FILE_NAME_KEY, ::cryptoSignKeyPair)
+    override val key: Ed25519PrivateKey
+        get() = loadFileOrGenerate(FILE_NAME_KEY, Ed25519PrivateKey.Companion::generate, Ed25519PrivateKey.Companion::fromByteArray)
 
-    override val salt: ByteArray
-        get() = loadFileOrGenerate(FILE_NAME_SALT) { randomBytes(SALT_BYTES) }
+    override val salt: Salt
+        get() = loadFileOrGenerate(FILE_NAME_SALT, Salt.Companion::generate, Salt.Companion::fromByteArray)
 
-    private fun loadFileOrGenerate(name: String, generator: () -> ByteArray): ByteArray {
+    private fun <T : KeyMaterial> loadFileOrGenerate(name: String, generator: () -> T, reader: (ByteArray) -> T): T {
         try {
             ctx.openFileInput(name).use {
-                return it.readBytes()
+                return reader(it.readBytes())
             }
         } catch (e: FileNotFoundException) {
             val gen = generator()
             ctx.openFileOutput(name, Context.MODE_PRIVATE).use {
-                it.write(gen)
+                it.write(gen.asBytes)
             }
             return gen
         }
@@ -53,8 +49,8 @@ class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStor
     override val port: Int
         get() = sharedPreferences.getInt(SHARED_PREFERENCES_KEY_PORT, 0)
 
-    override val serverPublicKey: ByteArray
-        get() = Base64.decode(sharedPreferences.getString(SHARED_PREFERENCES_KEY_SERVER_PK, "")!!, SERVER_PK_BASE64_FLAGS)
+    override val serverPublicKey: Ed25519PublicKey
+        get() = Ed25519PublicKey.fromBase64(sharedPreferences.getString(SHARED_PREFERENCES_KEY_SERVER_PK, "")!!)
 
     private val sharedPreferences: SharedPreferences
         get() = PreferenceManager.getDefaultSharedPreferences(ctx)
@@ -96,12 +92,11 @@ class UserCache(context: Context) : SQLiteOpenHelper(context, "user_cache", null
     override fun onUpgrade(db: SQLiteDatabase?, old: Int, new: Int) { /* nothing yet */ }
 }
 
-fun Context.storeServerInfo(host: String, port: Int, serverPublicKey: ByteArray) {
+fun Context.storeServerInfo(host: String, port: Int, serverPublicKey: Ed25519PublicKey) {
     with(PreferenceManager.getDefaultSharedPreferences(this).edit()) {
         putString(SHARED_PREFERENCES_KEY_HOST, host)
         putInt(SHARED_PREFERENCES_KEY_PORT, port)
-        putString(SHARED_PREFERENCES_KEY_SERVER_PK,
-            Base64.encodeToString(serverPublicKey, SERVER_PK_BASE64_FLAGS))
+        putString(SHARED_PREFERENCES_KEY_SERVER_PK, serverPublicKey.asBase64)
         commit()
     }
 }
