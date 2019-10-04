@@ -15,12 +15,27 @@
         tools:targetApi="m"
         tools:replace="android:allowBackup"
         tools:ignore="GoogleAppIndexingWarning">
+        <activity
+            android:name=".AccountsActivity"
+            android:exported="false"
+            android:label="@string/title_activity_accounts"
+            android:theme="@style/AppTheme.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.SEARCH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.searchable"
+                android:resource="@xml/searchable" />
+        </activity>
         <activity android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <meta-data
+                android:name="android.app.default_searchable"
+                android:value=".AccountsActivity" />
         </activity>
         <activity
             android:name=".SettingsActivity"

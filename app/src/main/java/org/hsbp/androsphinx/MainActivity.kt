@@ -2,6 +2,7 @@ package org.hsbp.androsphinx
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.SearchEvent
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.android.synthetic.main.activity_main.*
 import org.libsodium.jni.NaCl
@@ -23,6 +24,10 @@ class MainActivity : AppCompatActivity() {
 
         button.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
+        }
+
+        search_btn.setOnClickListener {
+            onSearchRequested()
         }
     }
 }
