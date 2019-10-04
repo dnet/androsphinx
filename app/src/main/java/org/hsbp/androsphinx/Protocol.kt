@@ -102,7 +102,7 @@ fun Protocol.CredentialStore.hashId(hostname: String): ByteArray {
 val Protocol.CredentialStore.ruleKey
     get() = genericHash(key, salt)
 
-const val ENCRYPTED_RULE_LENGTH: Int = 42
+const val ENCRYPTED_RULE_LENGTH: Int = 90
 
 private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphinx.Challenge,
                      cs: Protocol.CredentialStore, callback: Protocol.PasswordCallback) {
@@ -118,7 +118,7 @@ private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphin
     }
 
     val encryptedRule = payload.sliceArray(DECAF_255_SER_BYTES until payload.size)
-    val ruleBytes = secretBoxOpen(encryptedRule, cs.ruleKey)
+    val ruleBytes = secretBoxOpen(cryptoSealOpen(encryptedRule, cs.key), cs.ruleKey)
     val combined = ByteBuffer.wrap(ruleBytes).order(ByteOrder.BIG_ENDIAN).getShort().toInt()
     val size = combined and SIZE_MASK
     val rule = CharacterClass.parse((combined shr RULE_SHIFT).toByte())
@@ -137,8 +137,9 @@ private fun doSphinx(message: ByteArray,
 
 private fun communicateWithServer(message: ByteArray, cs: Protocol.CredentialStore): ByteArray {
     val signed = cryptoSign(message, cs.key)
+    val sealed = cryptoSeal(signed, cs.serverPublicKey)
     val data = Socket(cs.host, cs.port).use { s ->
-        s.getOutputStream().write(signed)
+        s.getOutputStream().write(sealed)
         s.getInputStream().readBytes()
     }
     return cryptoSignOpen(data, cs.serverPublicKey)
