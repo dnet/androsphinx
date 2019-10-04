@@ -88,6 +88,17 @@ class ExampleInstrumentedTest {
     }
 
     @Test
+    fun sodiumHelperTest() {
+        NaCl.sodium()
+        val serverSigningPrivateKey = cryptoSignKeyPair()
+        val serverSigningPublicKey = skToPk(serverSigningPrivateKey)
+        val input = "dataToBeSealed".toByteArray()
+        val sealed = cryptoSeal(input, serverSigningPublicKey)
+        val output = cryptoSealOpen(sealed, serverSigningPrivateKey)
+        assertArrayEquals(input, output)
+    }
+
+    @Test
     fun sphinxNetworkTest() {
         NaCl.sodium()
         val cs = MockCredentialStore()

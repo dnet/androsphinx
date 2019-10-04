@@ -12,6 +12,14 @@ fun cryptoSign(message: ByteArray, key: ByteArray): ByteArray {
     return signed
 }
 
+fun cryptoSeal(message: ByteArray, signingPublicKey: ByteArray): ByteArray {
+    val sealed = ByteArray(message.size + Sodium.crypto_box_sealbytes())
+    val sealPublicKey = ByteArray(Sodium.crypto_box_publickeybytes())
+    Sodium.crypto_sign_ed25519_pk_to_curve25519(sealPublicKey, signingPublicKey)
+    Sodium.crypto_box_seal(sealed, message, message.size, sealPublicKey)
+    return sealed
+}
+
 fun genericHash(src: ByteArray, key: ByteArray): ByteArray {
     val result = ByteArray(Sodium.crypto_generichash_bytes())
     Sodium.crypto_generichash(result, result.size, src, src.size, key, key.size)
@@ -54,6 +62,21 @@ fun cryptoSignOpen(signedMessage: ByteArray, publicKey: ByteArray): ByteArray {
         throw SodiumException("Invalid signature")
     }
     return buffer.sliceArray(0 until msgLen[0])
+}
+
+fun cryptoSealOpen(sealedMessage: ByteArray, signingPrivateKey: ByteArray): ByteArray {
+    val sealBytes = Sodium.crypto_box_sealbytes()
+    require(signingPrivateKey.size == Sodium.crypto_sign_secretkeybytes()) { "Invalid secret key size" }
+    require(sealedMessage.size > sealBytes) { "Invalid input size" }
+    val message = ByteArray(sealedMessage.size - sealBytes)
+    val sealPrivateKey = ByteArray(Sodium.crypto_box_secretkeybytes())
+    val sealPublicKey = ByteArray(Sodium.crypto_box_publickeybytes())
+    Sodium.crypto_sign_ed25519_sk_to_curve25519(sealPrivateKey, signingPrivateKey)
+    Sodium.crypto_sign_ed25519_pk_to_curve25519(sealPublicKey, skToPk(signingPrivateKey))
+    if (Sodium.crypto_box_seal_open(message, sealedMessage, sealedMessage.size, sealPublicKey, sealPrivateKey) != 0) {
+        throw SodiumException("Cannot open sealedBox")
+    }
+    return message
 }
 
 fun secretBoxOpen(input: ByteArray, key: ByteArray): ByteArray {
