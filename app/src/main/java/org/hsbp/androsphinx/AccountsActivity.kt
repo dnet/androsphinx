@@ -6,10 +6,12 @@ import android.os.AsyncTask
 import android.os.Bundle
 import android.text.Editable
 import android.text.InputType
+import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.addTextChangedListener
+import com.google.android.material.snackbar.Snackbar
 import kotlinx.android.synthetic.main.activity_accounts.*
 import kotlinx.android.synthetic.main.content_accounts.*
 import java.lang.Exception
@@ -78,15 +80,20 @@ class AccountsActivity : AppCompatActivity() {
 
                 updateUserList(hostname)
 
-                fab.setOnClickListener {
-                    addUser(hostname)
+                fab.setOnClickListener { view ->
+                    addUser(hostname, view)
                 }
             }
         }
     }
 
-    private fun addUser(hostname: String) {
-        // TODO check for settings validity before showing UI
+    private fun addUser(hostname: String, view: View) {
+        if (!cs.isSetUpForCommunication) {
+            Snackbar.make(view, R.string.no_server_setup, Snackbar.LENGTH_LONG).setAction(R.string.open_settings) {
+                startActivity(Intent(this, SettingsActivity::class.java))
+            }.show()
+            return
+        }
 
         val linearLayout = LinearLayout(this)
         linearLayout.orientation = LinearLayout.VERTICAL

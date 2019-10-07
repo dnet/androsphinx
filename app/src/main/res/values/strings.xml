@@ -25,4 +25,6 @@
     <string name="master_password_confirm">confirm master password</string>
     <string name="server_error_title">A server error occurred</string>
     <string name="try_again_confirm">Would you like to try again?</string>
+    <string name="no_server_setup">Server configuration is incomplete</string>
+    <string name="open_settings">Open settings</string>
 </resources>

@@ -7,6 +7,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import androidx.preference.PreferenceManager
 import java.io.FileNotFoundException
+import java.lang.Exception
 
 const val FILE_NAME_KEY = "key"
 const val FILE_NAME_SALT = "salt"
@@ -23,6 +24,9 @@ const val USERNAME: String = "username"
 // TODO encrypt before storage / decrypt after retrieval using Android Key Store
 
 class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStore {
+    val isSetUpForCommunication: Boolean
+        get() = host.isNotEmpty() and (port != 0) and try { serverPublicKey.asBytes.isNotEmpty() } catch(e: Exception) { false }
+
     override val key: Ed25519PrivateKey
         get() = loadFileOrGenerate(FILE_NAME_KEY, Ed25519PrivateKey.Companion::generate, Ed25519PrivateKey.Companion::fromByteArray)
 
