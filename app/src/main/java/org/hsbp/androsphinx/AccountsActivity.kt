@@ -14,6 +14,7 @@ import androidx.core.widget.addTextChangedListener
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.android.synthetic.main.activity_accounts.*
 import kotlinx.android.synthetic.main.content_accounts.*
+import java.io.IOException
 import java.lang.Exception
 import java.net.MalformedURLException
 import java.net.URL
@@ -47,20 +48,24 @@ class AccountsActivity : AppCompatActivity() {
                 null -> {
                     val pw = passwordReceived
                     if (pw == null) {
-                        // TODO
-                        println("wtf")
+                        handleError(R.string.internal_error_title)
                     } else {
                         // TODO success
                         println(String(pw))
                         updateUserList(realm.hostname)
                     }
                 }
-                is Protocol.ServerFailureException -> {
-                    // TODO
-                    println(getString(R.string.server_error_title))
-                }
-                // TODO handle more exceptions like cryptography and networking
+                is Protocol.ServerFailureException -> handleError(R.string.server_error_title)
+                is SodiumException -> handleError(R.string.sodium_error_title)
+                is IOException -> handleError(R.string.io_error_title)
+                else -> handleError(R.string.unknown_error_title)
             }
+        }
+
+        private fun handleError(message: Int) {
+            Snackbar.make(fab, message, Snackbar.LENGTH_LONG).setAction(R.string.retry) {
+                CreateTask(masterPassword, realm, charClasses, size).execute()
+            }.show()
         }
     }
 
