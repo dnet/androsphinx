@@ -2,6 +2,7 @@ package org.hsbp.androsphinx
 
 import android.util.Base64
 import org.libsodium.jni.Sodium
+import org.libsodium.jni.SodiumConstants
 import java.lang.RuntimeException
 import java.nio.ByteBuffer
 
@@ -66,7 +67,7 @@ inline class Ed25519PrivateKey(private val key: ByteArray) : KeyMaterial {
 
     fun sign(message: ByteArray): ByteArray {
         require(key.size == Sodium.crypto_sign_secretkeybytes()) { "Invalid secret key size" }
-        val signed = ByteArray(message.size + Sodium.crypto_sign_bytes())
+        val signed = ByteArray(message.size + SodiumConstants.SIGNATURE_BYTES)
         Sodium.crypto_sign(signed, intArrayOf(signed.size), message, message.size, key)
         return signed
     }
@@ -132,11 +133,24 @@ inline class Curve25519PrivateKey(private val key: ByteArray) : KeyMaterial {
     override val asBytes: ByteArray
         get() = key
 
+    companion object {
+        fun generate(): Curve25519PrivateKey {
+            val sk = ByteArray(SodiumConstants.SECRETKEY_BYTES)
+            val pk = ByteArray(SodiumConstants.PUBLICKEY_BYTES)
+            Sodium.crypto_box_keypair(pk, sk)
+            return Curve25519PrivateKey(sk)
+        }
+
+        fun fromByteArray(value: ByteArray): Curve25519PrivateKey {
+            require(value.size == SodiumConstants.SECRETKEY_BYTES) { "Invalid secret key size" }
+            return Curve25519PrivateKey(value)
+        }
+    }
+
     fun unseal(sealedMessage: ByteArray): ByteArray {
-        val sealBytes = Sodium.crypto_box_sealbytes()
-        require(key.size == Sodium.crypto_box_secretkeybytes()) { "Invalid secret key size" }
-        require(sealedMessage.size > sealBytes) { "Invalid input size" }
-        val message = ByteArray(sealedMessage.size - sealBytes)
+        require(key.size == SodiumConstants.SECRETKEY_BYTES) { "Invalid secret key size" }
+        require(sealedMessage.size > SodiumConstants.SEAL_BYTES) { "Invalid input size" }
+        val message = ByteArray(sealedMessage.size - SodiumConstants.SEAL_BYTES)
         if (Sodium.crypto_box_seal_open(message, sealedMessage, sealedMessage.size, publicKey.asBytes, key) != 0) {
             throw SodiumException("Cannot open sealedBox")
         }
@@ -157,9 +171,16 @@ inline class Curve25519PublicKey(private val key: ByteArray) : KeyMaterial {
     override val asBytes: ByteArray
         get() = key
 
+    companion object {
+        fun fromByteArray(value: ByteArray): Curve25519PublicKey {
+            require(value.size == SodiumConstants.PUBLICKEY_BYTES) { "Invalid public key size" }
+            return Curve25519PublicKey(value)
+        }
+    }
+
     fun seal(message: ByteArray): ByteArray {
-        require(key.size == Sodium.crypto_box_publickeybytes()) { "Invalid public key size" }
-        val sealed = ByteArray(message.size + Sodium.crypto_box_sealbytes())
+        require(key.size == SodiumConstants.PUBLICKEY_BYTES) { "Invalid public key size" }
+        val sealed = ByteArray(message.size + SodiumConstants.SEAL_BYTES)
         Sodium.crypto_box_seal(sealed, message, message.size, key)
         return sealed
     }
@@ -175,18 +196,17 @@ inline class SecretBoxKey(private val key: ByteArray) {
 
     fun encrypt(plainText: ByteArray): Pair<ByteArray, ByteArray> {
         require(key.size == Sodium.crypto_secretbox_keybytes()) { "Invalid key size" }
-        val cipherText = ByteArray(plainText.size + Sodium.crypto_box_macbytes())
-        val nonce = randomBytes(Sodium.crypto_secretbox_noncebytes())
+        val cipherText = ByteArray(plainText.size + SodiumConstants.MAC_BYTES)
+        val nonce = randomBytes(SodiumConstants.NONCE_BYTES)
         Sodium.crypto_secretbox_easy(cipherText, plainText, plainText.size, nonce, key)
         return nonce to cipherText
     }
 
     fun decrypt(input: ByteArray): ByteArray {
-        val nonceBytes = Sodium.crypto_secretbox_noncebytes()
         require(key.size == Sodium.crypto_secretbox_keybytes()) { "Invalid key size" }
-        require(input.size > nonceBytes) { "Invalid input size" }
-        val cipherText = input.sliceArray(nonceBytes until input.size)
-        val message = ByteArray(cipherText.size - Sodium.crypto_secretbox_macbytes())
+        require(input.size > SodiumConstants.NONCE_BYTES) { "Invalid input size" }
+        val cipherText = input.sliceArray(SodiumConstants.NONCE_BYTES until input.size)
+        val message = ByteArray(cipherText.size - SodiumConstants.MAC_BYTES)
         if (Sodium.crypto_secretbox_open_easy(message, cipherText, cipherText.size, input, key) != 0) {
             throw SodiumException("Cannot open secretBox")
         }
@@ -194,7 +214,24 @@ inline class SecretBoxKey(private val key: ByteArray) {
     }
 }
 
-private fun randomBytes(size: Int): ByteArray {
+fun Pair<Curve25519PublicKey, Curve25519PrivateKey>.decrypt(input: ByteArray): ByteArray {
+    require(input.size > SodiumConstants.NONCE_BYTES + Sodium.crypto_box_macbytes()) { "Invalid input size" }
+    val box = input.copyOfRange(SodiumConstants.NONCE_BYTES, input.size)
+    val plain = ByteArray(box.size - Sodium.crypto_box_macbytes())
+    if (Sodium.crypto_box_open_easy(plain, box, box.size, input, this.first.asBytes, this.second.asBytes) != 0) {
+        throw SodiumException("Cannot open cryptoBox")
+    }
+    return plain
+}
+
+fun Pair<Curve25519PrivateKey, Curve25519PublicKey>.encrypt(input: ByteArray): ByteArray {
+    val nonce = randomBytes(SodiumConstants.NONCE_BYTES)
+    val ciphertext = ByteArray(input.size + Sodium.crypto_box_macbytes())
+    Sodium.crypto_box_easy(ciphertext, input, input.size, nonce, this.second.asBytes, this.first.asBytes)
+    return nonce + ciphertext
+}
+
+fun randomBytes(size: Int): ByteArray {
     val result = ByteArray(size)
     Sodium.randombytes(result, result.size)
     return result
