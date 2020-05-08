@@ -4,6 +4,7 @@ import java.lang.RuntimeException
 import java.net.Socket
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import javax.net.ssl.SSLSocketFactory
 
 const val SIZE_MASK: Int = 0x7F
 const val RULE_SHIFT: Int = 7
@@ -46,6 +47,7 @@ class Protocol {
         val host: String
         val port: Int
         val serverPublicKey: Ed25519PublicKey
+        val useTls: Boolean
         fun getUsers(hostId: ByteArray): List<String>
         fun cacheUser(hostId: ByteArray, username: String)
         fun deleteUser(hostId: ByteArray, username: String)
@@ -137,7 +139,8 @@ private fun doSphinx(message: ByteArray,
 private fun communicateWithServer(message: ByteArray, cs: Protocol.CredentialStore): ByteArray {
     val signed = cs.key.sign(message)
     val sealed = cs.serverPublicKey.asCurve25519PublicKey.seal(signed)
-    val data = Socket(cs.host, cs.port).use { s ->
+    val socket: Socket = if (cs.useTls) SSLSocketFactory.getDefault().createSocket(cs.host, cs.port) else Socket(cs.host, cs.port)
+    val data = socket.use { s ->
         s.getOutputStream().write(sealed)
         s.getInputStream().readBytes()
     }

@@ -15,6 +15,7 @@ const val FILE_NAME_SALT = "salt"
 const val SHARED_PREFERENCES_KEY_HOST = "host"
 const val SHARED_PREFERENCES_KEY_PORT = "port"
 const val SHARED_PREFERENCES_KEY_SERVER_PK = "server_pk"
+const val SHARED_PREFERENCES_KEY_USE_TLS = "use_tls"
 
 const val DB_VERSION: Int = 1
 const val USERS_TABLE: String = "users"
@@ -52,6 +53,9 @@ class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStor
 
     override val port: Int
         get() = sharedPreferences.getInt(SHARED_PREFERENCES_KEY_PORT, 0)
+
+    override val useTls: Boolean
+        get() = sharedPreferences.getBoolean(SHARED_PREFERENCES_KEY_USE_TLS, true)
 
     override val serverPublicKey: Ed25519PublicKey
         get() = Ed25519PublicKey.fromBase64(sharedPreferences.getString(SHARED_PREFERENCES_KEY_SERVER_PK, "")!!)
