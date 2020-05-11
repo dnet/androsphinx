@@ -69,11 +69,10 @@ class Protocol {
     }
 
     companion object {
+
         fun create(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
                    cs: CredentialStore, callback: PasswordCallback, size: Int = 0) {
             require(charClasses.isNotEmpty()) { "At least one character class must be allowed." }
-            val rule = (CharacterClass.serialize(charClasses).toInt() shl RULE_SHIFT) or (size and SIZE_MASK)
-            val ruleBytes = ByteBuffer.allocate(RULE_BYTES_LENGTH).order(ByteOrder.BIG_ENDIAN).putShort(rule.toShort()).array()
 
             val rwd = cs.createSocket().use { socket ->
                 val sis = socket.getInputStream()
@@ -85,11 +84,7 @@ class Protocol {
                     sis.read(response)
                     challenge.finish(response)
                 }
-                val sk = cs.getSignKey(id, rwd)
-                val (ruleNonce, ruleCipherText) = cs.getSealKey(rwd).encrypt(ruleBytes)
-                val msg = sk.publicKey.asBytes + ruleNonce + ruleCipherText
-                sos.write(msg + sk.sign(msg))
-
+                sendRule(socket, charClasses, size, cs.getSealKey(rwd), cs.getSignKey(id, rwd))
                 updateUserList(socket, cs, realm)
 
                 rwd
@@ -154,6 +149,14 @@ class Protocol {
             }
         }
     }
+}
+
+fun sendRule(socket: Socket, charClasses: Set<CharacterClass>, size: Int, sealKey: SecretBoxKey, signKey: Ed25519PrivateKey) {
+    val rule = (CharacterClass.serialize(charClasses).toInt() shl RULE_SHIFT) or (size and SIZE_MASK)
+    val ruleBytes = ByteBuffer.allocate(RULE_BYTES_LENGTH).order(ByteOrder.BIG_ENDIAN).putShort(rule.toShort()).array()
+    val (ruleNonce, ruleCipherText) = sealKey.encrypt(ruleBytes)
+    val msg = signKey.publicKey.asBytes + ruleNonce + ruleCipherText
+    socket.getOutputStream().write(msg + signKey.sign(msg))
 }
 
 private fun receiveUsernameList(socket: Socket, key: SecretBoxKey): Set<String> {
