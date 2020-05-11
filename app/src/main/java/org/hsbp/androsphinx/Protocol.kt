@@ -31,7 +31,7 @@ class Protocol {
                 message.put(code)
                 parts.forEach { message.put(it) }
 
-                doSphinx(message.array(), realm, challenge, cs, callback)
+                doSphinx(message.array(), challenge, cs, callback)
             }
         }
 
@@ -198,7 +198,7 @@ fun Protocol.CredentialStore.auth(socket: Socket, hostId: ByteArray, challenge: 
 }
 
 @Suppress("UsePropertyAccessSyntax")
-private fun doSphinx(message: ByteArray, realm: Protocol.Realm, challenge: Sphinx.Challenge,
+private fun doSphinx(message: ByteArray, challenge: Sphinx.Challenge,
                      cs: Protocol.CredentialStore, callback: Protocol.PasswordCallback) {
     val payload = communicateWithServer(message, cs)
     if (payload.sliceArray(0 until payload.size - ENCRYPTED_RULE_LENGTH).equalsString("fail")
