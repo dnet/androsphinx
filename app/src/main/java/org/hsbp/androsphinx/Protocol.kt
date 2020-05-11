@@ -185,7 +185,7 @@ fun Protocol.CredentialStore.getSignKey(id: ByteArray, rwd: ByteArray = ByteArra
 fun Protocol.CredentialStore.getSealKey(rwd: ByteArray = ByteArray(0)): SecretBoxKey =
     SecretBoxKey.fromByteArray(key.foldHash(Context.ENCRYPTION, rwd))
 
-fun Protocol.CredentialStore.auth(socket: Socket, hostId: ByteArray, challenge: Sphinx.Challenge? = null) {
+fun Protocol.CredentialStore.auth(socket: Socket, hostId: ByteArray, challenge: Sphinx.Challenge? = null): ByteArray {
     val sis = socket.getInputStream()
     val sos = socket.getOutputStream()
     val nonce = ByteArray(AUTH_NONCE_BYTES)
@@ -199,6 +199,7 @@ fun Protocol.CredentialStore.auth(socket: Socket, hostId: ByteArray, challenge: 
         challenge.finish(beta)
     }
     sos.write(getSignKey(hostId, rwd).sign(nonce))
+    return rwd
 }
 
 @Suppress("UsePropertyAccessSyntax")
