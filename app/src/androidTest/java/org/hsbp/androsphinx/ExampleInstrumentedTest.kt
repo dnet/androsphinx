@@ -100,8 +100,10 @@ class ExampleInstrumentedTest {
         NaCl.sodium()
         val cs = MockCredentialStore()
         val username = "network"
+        val username2 = "network2"
         val hostname = "test${System.currentTimeMillis()}.tld"
         val realm = Protocol.Realm(username, hostname)
+        val realm2 = Protocol.Realm(username2, hostname)
         val charClasses = setOf(CharacterClass.LOWER, CharacterClass.DIGITS)
         val size = 18
         val callback = object : Protocol.PasswordCallback {
@@ -119,7 +121,15 @@ class ExampleInstrumentedTest {
         val pw = callback.gotPassword!!
         assertEquals(size, pw.size)
         assert(pw.all { pwChar -> charClasses.any { it.range.contains(pwChar) } })
-        assert(Protocol.list(hostname, cs).contains(username))
+        val userList = Protocol.list(hostname, cs)
+        assertEquals(1, userList.size)
+        assert(userList.contains(username))
+
+        Protocol.create("sphinxNetworkTestMasterPassword2".toCharArray(), realm2, charClasses, cs, callback, size)
+        val userList2 = Protocol.list(hostname, cs)
+        assertEquals(2, userList2.size)
+        assert(userList2.contains(username))
+        assert(userList2.contains(username2))
 
         callback.gotPassword = null
 
