@@ -147,16 +147,10 @@ class ExampleInstrumentedTest {
         Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
         assertArrayEquals(pw, callback.gotPassword)
 
-        val oneWayCallback = object : Protocol.OneWayCallback {
-            var called = false
+        callback.gotPassword = null
 
-            override fun commandCompleted() {
-                called = true
-            }
-        }
-
-        Protocol.commit(realm, cs, oneWayCallback)
-        assert(oneWayCallback.called)
+        Protocol.commit("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
+        assertArrayEquals(pw2, callback.gotPassword)
 
         callback.gotPassword = null
 
@@ -215,12 +209,6 @@ private fun processCommand(cmd: String, pw: PrintWriter, cs: Protocol.Credential
         }
     }
 
-    val oneWayCallback = object : Protocol.OneWayCallback {
-        override fun commandCompleted() {
-            pw.println("committed")
-        }
-    }
-
     try {
         when (parts[0]) {
             "create" -> {
@@ -243,27 +231,25 @@ private fun processCommand(cmd: String, pw: PrintWriter, cs: Protocol.Credential
                     pw.println("Invalid size")
                 }
             }
-            "get", "change" -> {
+            "get", "change", "commit" -> {
                 if (parts.size < 4) {
                     pw.println("Not enough arguments")
                 }
                 val realm = Protocol.Realm(parts[2], parts[3])
                 if (parts[0] == "get") {
                     Protocol.get(parts[1].toCharArray(), realm, cs, passwordCallback)
+                } else if (parts[0] == "commit") {
+                    Protocol.commit(parts[1].toCharArray(), realm, cs, passwordCallback)
                 } else {
                     Protocol.change(parts[1].toCharArray(), realm, cs, passwordCallback)
                 }
             }
-            "commit", "delete" -> {
+            "delete" -> {
                 if (parts.size < 3) {
                     pw.println("Not enough arguments")
                 }
                 val realm = Protocol.Realm(parts[1], parts[2])
-                if (parts[0] == "commit") {
-                    Protocol.commit(realm, cs, oneWayCallback)
-                } else {
-                    Protocol.delete(realm, cs)
-                }
+                Protocol.delete(realm, cs)
             }
             "list" -> {
                 Protocol.list(parts[1], cs).forEach(pw::println)
