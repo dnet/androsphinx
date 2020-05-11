@@ -112,6 +112,8 @@ class ExampleInstrumentedTest {
             }
         }
 
+        assert(Protocol.list(hostname, cs).isEmpty())
+
         Protocol.create("sphinxNetworkTestMasterPassword".toCharArray(), realm, charClasses, cs, callback, size)
         assertNotNull(callback.gotPassword)
         val pw = callback.gotPassword!!
