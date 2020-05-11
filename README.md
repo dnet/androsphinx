@@ -53,19 +53,17 @@ QR code format
 
 Server details can be configured using a simple QR code with the following format:
 
- - Format flags (1 byte, LSB: client credentials present, others reserved for future use)
- - Client secret key (64 bytes, "raw" without any encoding, only present when format type has LSB set)
- - Client salt (32 bytes, "raw" without any encoding, only present when format type has LSB set)
- - Server public key (32 bytes, "raw" without any encoding)
+ - Format flags (1 byte, LSB: client credentials present, next bit: use TLS)
+ - Client master key (32 bytes, "raw" without any encoding, only present when format type has LSB set)
  - Server port (big endian, 2 bytes, "raw" without any encoding)
  - Server hostname (UTF-8)
 
 This could be generated this way using qrencode (Debian/Ubuntu package: `qrencode`)
 
-	(printf '\x00' ; cat ~/.sphinx/server-key.pub ;
+	(printf '\x00' ;
 		printf '\x09\x33%s' "example.com") | qrencode -8 -t ANSI256
 
-	(printf '\x01' ; cat ~/.sphinx/{key,salt,server-key.pub} ;
+	(printf '\x01' ; cat ~/.sphinx/key ;
 		printf '\x09\x33%s' "example.com") | qrencode -8 -t ANSI256
 
 In the above case, 0x0933 is port 2355 (the default port). Extra care must be
@@ -112,6 +110,6 @@ for the next command. The syntax is intentionally similar to that of
 parameter for the relevant commands.
 
 If you indend to check whether SPHINX entries created by one implementation
-can be read by another, make sure that `key` and `salt` also match the one
+can be read by another, make sure that `key` also matches the one
 defined in the class `MockCredentialStore`. For example, in `pwdsphinx`, this
-can be found in files `~/.sphinx/{key,salt}`.
+can be found in the file `~/.sphinx/key`.

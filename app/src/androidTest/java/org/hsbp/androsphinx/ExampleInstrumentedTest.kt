@@ -45,7 +45,6 @@ class ExampleInstrumentedTest {
         val key = storage.key
         assertEquals(Sodium.crypto_sign_secretkeybytes(), key.asBytes.size)
         assertArrayEquals(storage.key.asBytes, key.asBytes)
-        assertEquals(SALT_BYTES, storage.salt.asBytes.size)
 
         val host1 = ByteArray(16) { 1 }
         val host2 = ByteArray(16) { 2 }
@@ -79,12 +78,10 @@ class ExampleInstrumentedTest {
 
         val host = "example.tld"
         val port = 31337
-        val serverPublicKey = ByteArray(32) { 3 }
-        appContext.storeServerInfo(host, port, Ed25519PublicKey.fromByteBuffer(ByteBuffer.wrap(serverPublicKey)))
+        appContext.storeServerInfo(host, port)
 
         assertEquals(host, storage.host)
         assertEquals(port, storage.port)
-        assertArrayEquals(serverPublicKey, storage.serverPublicKey.asBytes)
     }
 
     @Test

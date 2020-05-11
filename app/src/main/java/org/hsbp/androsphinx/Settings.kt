@@ -20,9 +20,11 @@ import android.graphics.Point
 import android.graphics.drawable.BitmapDrawable
 import android.widget.ImageView
 import androidx.appcompat.app.AlertDialog
+import androidx.preference.SwitchPreference
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import java.util.*
+import kotlin.experimental.or
 
 class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,7 +37,8 @@ class SettingsActivity : AppCompatActivity() {
     }
 }
 
-const val QR_FLAGS_HAS_KEY_SALT: Int = 1
+const val QR_FLAGS_HAS_KEY: Int = 1
+const val QR_FLAGS_USE_TLS: Int = 2
 const val BLACK: Int = 0xFF000000.toInt()
 const val WHITE: Int = 0xFFFFFFFF.toInt()
 
@@ -85,20 +88,18 @@ class SettingsFragment : PreferenceFragmentCompat() {
 
         try {
             val formatFlags = info.get().toInt()
-            val secrets = if (formatFlags and QR_FLAGS_HAS_KEY_SALT == QR_FLAGS_HAS_KEY_SALT) {
-                listOf(FILE_NAME_KEY to Ed25519PrivateKey.fromByteBuffer(info),
-                    FILE_NAME_SALT to Salt.fromByteBuffer(info))
+            val secrets = if (formatFlags and QR_FLAGS_HAS_KEY == QR_FLAGS_HAS_KEY) {
+                listOf(FILE_NAME_KEY to MasterKey.fromByteBuffer(info))
             } else {
                 emptyList()
             }
-            val pk = Ed25519PublicKey.fromByteBuffer(info)
             val port = info.getShort()
             val host = info.getByteArray(info.remaining()).decodeToString()
 
             with(preferenceManager) {
                 findPreference<EditTextPreference>(SHARED_PREFERENCES_KEY_HOST)!!.text = host
                 findPreference<IntEditTextPreference>(SHARED_PREFERENCES_KEY_PORT)!!.text = port.toString()
-                findPreference<EditTextPreference>(SHARED_PREFERENCES_KEY_SERVER_PK)!!.text = pk.asBase64
+                findPreference<SwitchPreference>(SHARED_PREFERENCES_KEY_USE_TLS)!!.isChecked = (formatFlags and QR_FLAGS_USE_TLS == QR_FLAGS_USE_TLS)
             }
 
             for ((filename, keyMaterial) in secrets) {
@@ -117,13 +118,12 @@ class SettingsFragment : PreferenceFragmentCompat() {
 
 enum class ShareType(private val code: Byte) {
     @Suppress("UNUSED") PUBLIC(code = 0),
-    @Suppress("UNUSED") PRIVATE(code = 1) {
+    @Suppress("UNUSED") PRIVATE(code = QR_FLAGS_HAS_KEY.toByte()) {
         override val privateMaterialSize: Int
-            get() = Sodium.crypto_sign_secretkeybytes() + SALT_BYTES
+            get() = Sodium.crypto_sign_secretkeybytes()
 
         override fun providePrivateMaterial(target: ByteBuffer, cs: Protocol.CredentialStore) {
             target.put(cs.key.asBytes)
-            target.put(cs.salt.asBytes)
         }
     };
 
@@ -136,14 +136,12 @@ enum class ShareType(private val code: Byte) {
 
     fun serialize(context: Context): ByteArray {
         val cs = AndroidCredentialStore(context)
-        val pk = cs.serverPublicKey
         val hostBytes = cs.host.toByteArray()
-        val info = ByteBuffer.allocate(1 + pk.asBytes.size + 2 + hostBytes.size + privateMaterialSize)
+        val info = ByteBuffer.allocate(1 + 2 + hostBytes.size + privateMaterialSize)
 
         with(info) {
-            put(code)
+            put(code or (if (cs.useTls) QR_FLAGS_USE_TLS.toByte() else 0))
             providePrivateMaterial(info, cs)
-            put(pk.asBytes)
             putShort(cs.port.toShort())
             put(hostBytes)
         }

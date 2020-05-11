@@ -10,11 +10,9 @@ import java.io.FileNotFoundException
 import java.lang.Exception
 
 const val FILE_NAME_KEY = "key"
-const val FILE_NAME_SALT = "salt"
 
 const val SHARED_PREFERENCES_KEY_HOST = "host"
 const val SHARED_PREFERENCES_KEY_PORT = "port"
-const val SHARED_PREFERENCES_KEY_SERVER_PK = "server_pk"
 const val SHARED_PREFERENCES_KEY_USE_TLS = "use_tls"
 
 const val DB_VERSION: Int = 1
@@ -26,13 +24,10 @@ const val USERNAME: String = "username"
 
 class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStore {
     val isSetUpForCommunication: Boolean
-        get() = host.isNotEmpty() and (port != 0) and try { serverPublicKey.asBytes.isNotEmpty() } catch(e: Exception) { false }
+        get() = host.isNotEmpty() and (port != 0)
 
-    override val key: Ed25519PrivateKey
-        get() = loadFileOrGenerate(FILE_NAME_KEY, Ed25519PrivateKey.Companion::generate, Ed25519PrivateKey.Companion::fromByteArray)
-
-    override val salt: Salt
-        get() = loadFileOrGenerate(FILE_NAME_SALT, Salt.Companion::generate, Salt.Companion::fromByteArray)
+    override val key: MasterKey
+        get() = loadFileOrGenerate(FILE_NAME_KEY, MasterKey.Companion::generate, MasterKey.Companion::fromByteArray)
 
     private fun <T : KeyMaterial> loadFileOrGenerate(name: String, generator: () -> T, reader: (ByteArray) -> T): T {
         try {
@@ -56,9 +51,6 @@ class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStor
 
     override val useTls: Boolean
         get() = sharedPreferences.getBoolean(SHARED_PREFERENCES_KEY_USE_TLS, true)
-
-    override val serverPublicKey: Ed25519PublicKey
-        get() = Ed25519PublicKey.fromBase64(sharedPreferences.getString(SHARED_PREFERENCES_KEY_SERVER_PK, "")!!)
 
     private val sharedPreferences: SharedPreferences
         get() = PreferenceManager.getDefaultSharedPreferences(ctx)
@@ -100,11 +92,10 @@ class UserCache(context: Context) : SQLiteOpenHelper(context, "user_cache", null
     override fun onUpgrade(db: SQLiteDatabase?, old: Int, new: Int) { /* nothing yet */ }
 }
 
-fun Context.storeServerInfo(host: String, port: Int, serverPublicKey: Ed25519PublicKey) {
+fun Context.storeServerInfo(host: String, port: Int) {
     with(PreferenceManager.getDefaultSharedPreferences(this).edit()) {
         putString(SHARED_PREFERENCES_KEY_HOST, host)
         putInt(SHARED_PREFERENCES_KEY_PORT, port)
-        putString(SHARED_PREFERENCES_KEY_SERVER_PK, serverPublicKey.asBase64)
         commit()
     }
 }

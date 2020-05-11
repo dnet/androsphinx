@@ -8,37 +8,49 @@ import java.nio.ByteBuffer
 
 class SodiumException(message: String) : RuntimeException(message)
 
-const val SALT_BYTES = 32
+const val MASTER_KEY_BYTES = 32
 const val PK_BASE64_FLAGS = Base64.NO_WRAP or Base64.NO_PADDING
 
 interface KeyMaterial {
     val asBytes: ByteArray
 }
 
-inline class Salt(private val salt: ByteArray) : KeyMaterial {
-    companion object {
-        fun generate(): Salt = Salt(randomBytes(SALT_BYTES))
+enum class Context(private val value: String) {
+    SIGNING("sphinx signing key"),
+    ENCRYPTION("sphinx encryption key"),
+    SALT("sphinx host salt"),
+    PASSWORD("sphinx password context");
 
-        fun fromByteArray(value: ByteArray): Salt {
-            require(value.size == SALT_BYTES) { "Invalid salt size" }
-            return Salt(value)
+    fun foldHash(vararg messages: ByteArray): ByteArray {
+        return messages.fold(value.toByteArray()) { message, salt ->
+            val result = ByteArray(Sodium.crypto_generichash_bytes())
+            Sodium.crypto_generichash(result, result.size, message, message.size, salt, salt.size)
+            result
+        }
+    }
+}
+
+inline class MasterKey(private val salt: ByteArray) : KeyMaterial {
+    companion object {
+        fun generate(): MasterKey = MasterKey(randomBytes(MASTER_KEY_BYTES))
+
+        fun fromByteArray(value: ByteArray): MasterKey {
+            require(value.size == MASTER_KEY_BYTES) { "Invalid master key size" }
+            return MasterKey(value)
         }
 
-        fun fromByteBuffer(buffer: ByteBuffer): Salt {
-            val s = Salt(ByteArray(SALT_BYTES))
+        fun fromByteBuffer(buffer: ByteBuffer): MasterKey {
+            val s = MasterKey(ByteArray(MASTER_KEY_BYTES))
             buffer.get(s.salt)
             return s
         }
     }
 
+    fun foldHash(context: Context, vararg messages: ByteArray): ByteArray =
+        context.foldHash(*(listOf(asBytes) + messages.toList()).toTypedArray())
+
     override val asBytes: ByteArray
         get() = salt
-
-    fun hash(message: ByteArray): ByteArray {
-        val result = ByteArray(Sodium.crypto_generichash_bytes())
-        Sodium.crypto_generichash(result, result.size, message, message.size, salt, salt.size)
-        return result
-    }
 }
 
 inline class Ed25519PrivateKey(private val key: ByteArray) : KeyMaterial {
@@ -47,6 +59,14 @@ inline class Ed25519PrivateKey(private val key: ByteArray) : KeyMaterial {
             val sk = ByteArray(Sodium.crypto_sign_secretkeybytes())
             val pk = ByteArray(Sodium.crypto_sign_publickeybytes())
             Sodium.crypto_sign_keypair(pk, sk)
+            return Ed25519PrivateKey(sk)
+        }
+
+        fun fromSeed(seed: ByteArray): Ed25519PrivateKey {
+            require(seed.size == Sodium.crypto_sign_seedbytes()) { "Invalid seed size" }
+            val sk = ByteArray(Sodium.crypto_sign_secretkeybytes())
+            val pk = ByteArray(Sodium.crypto_sign_publickeybytes())
+            Sodium.crypto_sign_seed_keypair(pk, sk, seed)
             return Ed25519PrivateKey(sk)
         }
 
@@ -67,9 +87,9 @@ inline class Ed25519PrivateKey(private val key: ByteArray) : KeyMaterial {
 
     fun sign(message: ByteArray): ByteArray {
         require(key.size == Sodium.crypto_sign_secretkeybytes()) { "Invalid secret key size" }
-        val signed = ByteArray(message.size + SodiumConstants.SIGNATURE_BYTES)
-        Sodium.crypto_sign(signed, intArrayOf(signed.size), message, message.size, key)
-        return signed
+        val signature = ByteArray(SodiumConstants.SIGNATURE_BYTES)
+        Sodium.crypto_sign_detached(signature, intArrayOf(signature.size), message, message.size, key)
+        return signature
     }
 
     val publicKey: Ed25519PublicKey
