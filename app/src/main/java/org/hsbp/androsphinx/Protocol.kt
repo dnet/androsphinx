@@ -20,9 +20,10 @@ class Protocol {
         CHANGE(0xAA.toByte()), WRITE(0xCC.toByte()), DELETE(0xFF.toByte());
 
         fun execute(realm: Realm, password: CharArray, cs: CredentialStore, callback: PasswordCallback, vararg extra: ByteArray) {
+            val hostId = realm.hash(cs)
             Sphinx.Challenge(password).use { challenge ->
                 val parts = sequence {
-                    yield(realm.hash(cs))
+                    yield(hostId)
                     yield(challenge.challenge)
                     yieldAll(extra.asSequence())
                 }.toList()
