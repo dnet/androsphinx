@@ -21,14 +21,13 @@ class Protocol {
         GET(0x66, requiresAuth = false), COMMIT(0x99.toByte(), rewriteRule = true),
         CHANGE(0xAA.toByte()), WRITE(0xCC.toByte()), DELETE(0xFF.toByte());
 
-        fun execute(realm: Realm, password: CharArray, cs: CredentialStore, callback: PasswordCallback, vararg extra: ByteArray) {
+        fun execute(realm: Realm, password: CharArray, cs: CredentialStore, callback: PasswordCallback) {
             val hostId = realm.hash(cs)
             val authId = if (requiresAuth) hostId else null
             Sphinx.Challenge(password).use { challenge ->
                 val parts = sequence {
                     yield(hostId)
                     yield(challenge.challenge)
-                    yieldAll(extra.asSequence())
                 }.toList()
                 val message = ByteBuffer.allocate(parts.map { it.size }.sum() + 1)
 
