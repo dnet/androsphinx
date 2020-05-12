@@ -43,7 +43,7 @@ class ExampleInstrumentedTest {
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
         val storage = AndroidCredentialStore(appContext)
         val key = storage.key
-        assertEquals(Sodium.crypto_sign_secretkeybytes(), key.asBytes.size)
+        assertEquals(MASTER_KEY_BYTES, key.asBytes.size)
         assertArrayEquals(storage.key.asBytes, key.asBytes)
 
         assertEquals("", storage.host)
