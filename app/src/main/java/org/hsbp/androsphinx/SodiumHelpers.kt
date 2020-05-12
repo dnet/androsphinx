@@ -9,10 +9,6 @@ class SodiumException(message: String) : RuntimeException(message)
 
 const val MASTER_KEY_BYTES = 32
 
-interface KeyMaterial {
-    val asBytes: ByteArray
-}
-
 enum class Context(private val value: String) {
     SIGNING("sphinx signing key"),
     ENCRYPTION("sphinx encryption key"),
@@ -28,7 +24,7 @@ enum class Context(private val value: String) {
     }
 }
 
-inline class MasterKey(private val salt: ByteArray) : KeyMaterial {
+inline class MasterKey(private val salt: ByteArray) {
     companion object {
         fun generate(): MasterKey = MasterKey(randomBytes(MASTER_KEY_BYTES))
 
@@ -47,7 +43,7 @@ inline class MasterKey(private val salt: ByteArray) : KeyMaterial {
     fun foldHash(context: Context, vararg messages: ByteArray): ByteArray =
         context.foldHash(*(listOf(asBytes) + messages.toList()).toTypedArray())
 
-    override val asBytes: ByteArray
+    val asBytes: ByteArray
         get() = salt
 }
 
