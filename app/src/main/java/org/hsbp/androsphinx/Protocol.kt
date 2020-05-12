@@ -1,5 +1,6 @@
 package org.hsbp.androsphinx
 
+import org.libsodium.jni.Sodium
 import org.libsodium.jni.SodiumConstants
 import java.io.InputStream
 import java.lang.RuntimeException
@@ -121,8 +122,20 @@ class Protocol {
             Command.UNDO.execute(realm, password, cs, callback)
         }
 
-        fun delete(realm: Realm, cs: CredentialStore) {
-            throw NotImplementedError()
+        fun delete(password: CharArray, realm: Realm, cs: CredentialStore) {
+            val hostId = realm.hash(cs)
+            Sphinx.Challenge(password).use { challenge ->
+                val message = ByteBuffer.allocate(DECAF_255_SER_BYTES + Sodium.crypto_generichash_bytes() + 1)
+                message.put(Command.DELETE.code)
+                message.put(hostId)
+                message.put(challenge.challenge)
+
+                cs.createSocket().use { s ->
+                    s.getOutputStream().write(message.array())
+                    cs.auth(s, hostId, challenge)
+                    updateUserList(s, cs, realm) { users -> if (users.isEmpty()) null else users - realm.username }
+                }
+            }
         }
 
         fun list(hostname: String, cs: CredentialStore): Set<String> {
