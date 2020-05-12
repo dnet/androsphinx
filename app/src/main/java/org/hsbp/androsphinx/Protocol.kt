@@ -21,51 +21,53 @@ class Protocol {
         GET(0x66, requiresAuth = false), COMMIT(0x99.toByte(), writeRule = true),
         CHANGE(0xAA.toByte()), WRITE(0xCC.toByte()), DELETE(0xFF.toByte());
 
-        fun send(socket: Socket, id: ByteArray, challenge: Sphinx.Challenge, cs: CredentialStore? = null): ByteArray {
-            val message = ByteBuffer.allocate(DECAF_255_SER_BYTES + Sodium.crypto_generichash_bytes() + 1)
-            message.put(code)
-            message.put(id)
-            message.put(challenge.challenge)
-            socket.getOutputStream().write(message.array())
-            return cs?.auth(socket, id, challenge) ?: challenge.finish(socket.getInputStream())
-        }
+        fun <T> connect(cs: CredentialStore, password: CharArray, id: ByteArray, body: (Socket, Sphinx.Challenge, ByteArray) -> T): T =
+            cs.createSocket().use { socket ->
+                Sphinx.Challenge(password).use { challenge ->
+                    val message = ByteBuffer.allocate(DECAF_255_SER_BYTES + Sodium.crypto_generichash_bytes() + 1)
+                    message.put(code)
+                    message.put(id)
+                    message.put(challenge.challenge)
+                    socket.getOutputStream().write(message.array())
+                    val rwd = if (requiresAuth) cs.auth(socket, id, challenge) else challenge.finish(socket.getInputStream())
+                    return body(socket, challenge, rwd)
+                }
+            }
 
         @Suppress("UsePropertyAccessSyntax")
         fun execute(realm: Realm, password: CharArray, cs: CredentialStore, callback: PasswordCallback,
                     createRule: Pair<Set<CharacterClass>, Int>? = null) {
             val hostId = realm.hash(cs)
-            Sphinx.Challenge(password).use { challenge ->
-                val derived = cs.createSocket().use { s ->
-                    val sis = s.getInputStream()
-                    val oldRwd = send(s, hostId, challenge, if (requiresAuth) cs else null)
-                    val newRwd = if (requiresAuth) challenge.finish(sis) else oldRwd
 
-                    val (rule, size) = if (createRule == null) {
-                        val encryptedRule = ByteArray(ENCRYPTED_RULE_LENGTH)
-                        sis.read(encryptedRule)
+            val derived = connect(cs, password, hostId) { s, challenge, oldRwd ->
+                val sis = s.getInputStream()
+                val newRwd = if (requiresAuth) challenge.finish(sis) else oldRwd
 
-                        val ruleBytes = cs.getSealKey(oldRwd).decrypt(encryptedRule)
-                        val combined =
-                            ByteBuffer.wrap(ruleBytes).order(ByteOrder.BIG_ENDIAN).getShort()
-                                .toInt()
-                        val size = combined and SIZE_MASK
-                        val rule = CharacterClass.parse((combined shr RULE_SHIFT).toByte())
-                        rule to size
-                    } else createRule
+                val (rule, size) = if (createRule == null) {
+                    val encryptedRule = ByteArray(ENCRYPTED_RULE_LENGTH)
+                    sis.read(encryptedRule)
 
-                    if (writeRule) {
-                        sendRule(s, rule, size, cs.getSealKey(newRwd), cs.getSignKey(hostId, newRwd))
-                    }
+                    val ruleBytes = cs.getSealKey(oldRwd).decrypt(encryptedRule)
+                    val combined =
+                        ByteBuffer.wrap(ruleBytes).order(ByteOrder.BIG_ENDIAN).getShort()
+                            .toInt()
+                    val size = combined and SIZE_MASK
+                    val rule = CharacterClass.parse((combined shr RULE_SHIFT).toByte())
+                    rule to size
+                } else createRule
 
-                    if (createRule != null) {
-                        updateUserList(s, cs, realm) { users -> users + realm.username }
-                    }
-
-                    CharacterClass.derive(Context.PASSWORD.foldHash(newRwd), rule, size)
+                if (writeRule) {
+                    sendRule(s, rule, size, cs.getSealKey(newRwd), cs.getSignKey(hostId, newRwd))
                 }
 
-                callback.passwordReceived(derived)
+                if (createRule != null) {
+                    updateUserList(s, cs, realm) { users -> users + realm.username }
+                }
+
+                CharacterClass.derive(Context.PASSWORD.foldHash(newRwd), rule, size)
             }
+
+            callback.passwordReceived(derived)
         }
     }
 
@@ -114,11 +116,8 @@ class Protocol {
         }
 
         fun delete(password: CharArray, realm: Realm, cs: CredentialStore) {
-            Sphinx.Challenge(password).use { challenge ->
-                cs.createSocket().use { s ->
-                    Command.DELETE.send(s, realm.hash(cs), challenge, cs)
-                    updateUserList(s, cs, realm) { users -> if (users.isEmpty()) null else users - realm.username }
-                }
+            Command.DELETE.connect(cs, password, realm.hash(cs)) { s, _, _ ->
+                updateUserList(s, cs, realm) { users -> if (users.isEmpty()) null else users - realm.username }
             }
         }
 
