@@ -119,6 +119,16 @@ class ExampleInstrumentedTest {
         Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
         assertArrayEquals(pw2, callback.gotPassword)
 
+        callback.gotPassword = null
+
+        Protocol.undo("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
+        assertArrayEquals(pw, callback.gotPassword)
+
+        callback.gotPassword = null
+
+        Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
+        assertArrayEquals(pw, callback.gotPassword)
+
         Protocol.delete(realm, cs)
         assert(Protocol.list(hostname, cs).isEmpty())
 
