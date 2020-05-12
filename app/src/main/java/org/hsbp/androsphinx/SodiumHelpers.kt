@@ -69,18 +69,13 @@ inline class Ed25519PrivateKey(private val key: ByteArray) {
         return signature
     }
 
-    val publicKey: Ed25519PublicKey
+    val publicKey: ByteArray
         get() {
             require(key.size == Sodium.crypto_sign_secretkeybytes()) { "Invalid secret key size" }
             val result = ByteArray(Sodium.crypto_sign_ed25519_publickeybytes())
             Sodium.crypto_sign_ed25519_sk_to_pk(result, key)
-            return Ed25519PublicKey(result)
+            return result
         }
-}
-
-inline class Ed25519PublicKey(private val key: ByteArray) : KeyMaterial {
-    override val asBytes: ByteArray
-        get() = key
 }
 
 inline class SecretBoxKey(private val key: ByteArray) {

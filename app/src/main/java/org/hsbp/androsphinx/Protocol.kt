@@ -94,7 +94,7 @@ class Protocol {
             val hostSk = cs.getSignKey(hostId)
 
             val usernameList = receiveUsernameList(socket, sealKey)
-            val prefix = if (usernameList.isEmpty()) hostSk.publicKey.asBytes else ByteArray(0)
+            val prefix = if (usernameList.isEmpty()) hostSk.publicKey else ByteArray(0)
             val users = update(usernameList) ?: return
 
             val (nonce, encrypted) = sealKey.encrypt(users.joinToString("\u0000").toByteArray())
@@ -157,7 +157,7 @@ fun sendRule(socket: Socket, charClasses: Set<CharacterClass>, size: Int, sealKe
     val rule = (CharacterClass.serialize(charClasses).toInt() shl RULE_SHIFT) or (size and SIZE_MASK)
     val ruleBytes = ByteBuffer.allocate(RULE_BYTES_LENGTH).order(ByteOrder.BIG_ENDIAN).putShort(rule.toShort()).array()
     val (ruleNonce, ruleCipherText) = sealKey.encrypt(ruleBytes)
-    val msg = signKey.publicKey.asBytes + ruleNonce + ruleCipherText
+    val msg = signKey.publicKey + ruleNonce + ruleCipherText
     socket.getOutputStream().write(msg + signKey.sign(msg))
 }
 
