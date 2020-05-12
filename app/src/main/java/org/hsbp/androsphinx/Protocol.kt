@@ -59,10 +59,6 @@ class Protocol {
         fun passwordReceived(password: CharArray)
     }
 
-    interface OneWayCallback {
-        fun commandCompleted()
-    }
-
     companion object {
 
         fun create(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
