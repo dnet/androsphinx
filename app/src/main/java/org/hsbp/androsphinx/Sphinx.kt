@@ -14,8 +14,8 @@ class Sphinx {
         }
 
         @JvmStatic private external fun challenge(password: ByteArray, blindingFactor: ByteArray, challenge: ByteArray)
-        @JvmStatic external fun respond(challenge: ByteArray, secret: ByteArray): ByteArray
-        @JvmStatic private external fun finish(password: ByteArray, blindingFactor: ByteArray, resp: ByteArray): ByteArray
+        @JvmStatic external fun respond(challenge: ByteArray, secret: ByteArray): ByteArray?
+        @JvmStatic private external fun finish(password: ByteArray, blindingFactor: ByteArray, resp: ByteArray): ByteArray?
     }
 
     class Challenge(pwd: CharArray) : AutoCloseable {
@@ -27,7 +27,7 @@ class Sphinx {
             challenge(passwordBytes, blindingFactor, challenge)
         }
 
-        fun finish(response: ByteArray): ByteArray {
+        fun finish(response: ByteArray): ByteArray? {
             return finish(passwordBytes, blindingFactor, response)
         }
 

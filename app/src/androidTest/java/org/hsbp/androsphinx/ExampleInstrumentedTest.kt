@@ -31,8 +31,8 @@ class ExampleInstrumentedTest {
     fun sphinxBasicTest() {
         Sphinx.Challenge("shitty password\u0000".toCharArray()).use { c ->
             val secret = ByteArray(32) { ' '.toByte() }
-            val resp = Sphinx.respond(c.challenge, secret)
-            val rwd = c.finish(resp)
+            val resp = Sphinx.respond(c.challenge, secret)!!
+            val rwd = c.finish(resp)!!
             assertArrayEquals(Base64.decode(EXPECTED_BASIC_TEST, Base64.DEFAULT), rwd)
         }
     }

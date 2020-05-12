@@ -77,7 +77,7 @@ class Protocol {
                     sos.write(byteArrayOf(Command.CREATE.code) + id + challenge.challenge)
                     val response = ByteArray(32)
                     sis.read(response)
-                    challenge.finish(response)
+                    challenge.finish(response) ?: throw ServerFailureException()
                 }
                 sendRule(socket, charClasses, size, cs.getSealKey(rwd), cs.getSignKey(id, rwd))
                 updateUserList(socket, cs, realm)
@@ -189,7 +189,7 @@ fun Protocol.CredentialStore.auth(socket: Socket, hostId: ByteArray, challenge: 
         val beta = ByteArray(DECAF_255_SER_BYTES)
         if (sis.read(beta) != beta.size) throw Protocol.ServerFailureException()
         if (sis.read(nonce) != nonce.size) throw Protocol.ServerFailureException()
-        challenge.finish(beta)
+        challenge.finish(beta) ?: throw Protocol.ServerFailureException()
     }
     sos.write(getSignKey(hostId, rwd).sign(nonce))
     return rwd
@@ -209,7 +209,7 @@ private fun doSphinx(message: ByteArray, challenge: Sphinx.Challenge,
             || result.size != DECAF_255_SER_BYTES + ENCRYPTED_RULE_LENGTH) {
             throw Protocol.ServerFailureException()
         }
-        val rwd = challenge.finish(result)
+        val rwd = challenge.finish(result) ?: throw Protocol.ServerFailureException()
         val encryptedRule = result.sliceArray(DECAF_255_SER_BYTES until result.size)
         val ruleBytes = cs.getSealKey(crwd ?: rwd).decrypt(encryptedRule)
         val combined = ByteBuffer.wrap(ruleBytes).order(ByteOrder.BIG_ENDIAN).getShort().toInt()
