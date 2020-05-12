@@ -18,21 +18,19 @@ class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStor
         get() = host.isNotEmpty() and (port != 0)
 
     override val key: MasterKey
-        get() = loadFileOrGenerate(FILE_NAME_KEY, MasterKey.Companion::generate, MasterKey.Companion::fromByteArray)
-
-    private fun <T : KeyMaterial> loadFileOrGenerate(name: String, generator: () -> T, reader: (ByteArray) -> T): T {
-        try {
-            ctx.openFileInput(name).use {
-                return reader(it.readBytes())
+        get() {
+            try {
+                ctx.openFileInput(FILE_NAME_KEY).use {
+                    return MasterKey.fromByteArray(it.readBytes())
+                }
+            } catch (e: FileNotFoundException) {
+                val gen = MasterKey.generate()
+                ctx.openFileOutput(FILE_NAME_KEY, Context.MODE_PRIVATE).use {
+                    it.write(gen.asBytes)
+                }
+                return gen
             }
-        } catch (e: FileNotFoundException) {
-            val gen = generator()
-            ctx.openFileOutput(name, Context.MODE_PRIVATE).use {
-                it.write(gen.asBytes)
-            }
-            return gen
         }
-    }
 
     override val host: String
         get() = sharedPreferences.getString(SHARED_PREFERENCES_KEY_HOST, "")!!
