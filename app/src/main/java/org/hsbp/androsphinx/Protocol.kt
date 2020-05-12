@@ -40,7 +40,7 @@ class Protocol {
     }
 
     class Realm(val username: String, val hostname: String) {
-        fun hash(cs: CredentialStore) = cs.hashId("$username|$hostname")
+        fun hash(cs: CredentialStore) = cs.key.foldHash(Context.SALT, "$username|$hostname".toByteArray())
 
         val withoutUser: Realm
             get() = Realm(username = "", hostname = hostname)
@@ -177,8 +177,6 @@ private fun InputStream.readBE16(): Int {
     read(len, 2, 2)
     return ByteBuffer.wrap(len).order(ByteOrder.BIG_ENDIAN).getInt()
 }
-
-fun Protocol.CredentialStore.hashId(hostname: String): ByteArray = key.foldHash(Context.SALT, hostname.toByteArray())
 
 fun Protocol.CredentialStore.getSignKey(id: ByteArray, rwd: ByteArray = ByteArray(0)): Ed25519PrivateKey =
     Ed25519PrivateKey.fromSeed(key.foldHash(Context.SIGNING, id, rwd))
