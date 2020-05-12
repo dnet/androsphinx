@@ -53,9 +53,6 @@ class Protocol {
         val host: String
         val port: Int
         val useTls: Boolean
-        fun getUsers(hostId: ByteArray): List<String>
-        fun cacheUser(hostId: ByteArray, username: String)
-        fun deleteUser(hostId: ByteArray, username: String)
     }
 
     interface PasswordCallback {

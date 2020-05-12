@@ -46,33 +46,6 @@ class ExampleInstrumentedTest {
         assertEquals(Sodium.crypto_sign_secretkeybytes(), key.asBytes.size)
         assertArrayEquals(storage.key.asBytes, key.asBytes)
 
-        val host1 = ByteArray(16) { 1 }
-        val host2 = ByteArray(16) { 2 }
-        val host1user1 = "foo"
-        val host1user2 = "bar"
-        val host2user1 = "baz"
-
-        assert(storage.getUsers(host1).isEmpty())
-        storage.deleteUser(host1, host1user1)
-
-        storage.cacheUser(host1, host1user1)
-        assertEquals(storage.getUsers(host1).size, 1)
-        assert(storage.getUsers(host1).contains(host1user1))
-
-        storage.cacheUser(host1, host1user2)
-        assertEquals(storage.getUsers(host1).size, 2)
-        assert(storage.getUsers(host1).containsAll(listOf(host1user1, host1user2)))
-
-        storage.cacheUser(host2, host2user1)
-        assertEquals(2, storage.getUsers(host1).size)
-        assert(storage.getUsers(host1).containsAll(listOf(host1user1, host1user2)))
-        assertEquals(1, storage.getUsers(host2).size)
-        assert(storage.getUsers(host1).contains(host1user2))
-
-        storage.deleteUser(host1, host1user1)
-        assertEquals(1, storage.getUsers(host1).size)
-        assert(storage.getUsers(host1).contains(host1user2))
-
         assertEquals("", storage.host)
         assertEquals(0, storage.port)
 
@@ -82,17 +55,6 @@ class ExampleInstrumentedTest {
 
         assertEquals(host, storage.host)
         assertEquals(port, storage.port)
-    }
-
-    @Test
-    fun sodiumHelperTest() {
-        NaCl.sodium()
-        val serverSigningPrivateKey = Ed25519PrivateKey.generate()
-        val serverSigningPublicKey = serverSigningPrivateKey.publicKey
-        val input = "dataToBeSealed".toByteArray()
-        val sealed = serverSigningPublicKey.asCurve25519PublicKey.seal(input)
-        val output = serverSigningPrivateKey.asCurve25519PrivateKey.unseal(sealed)
-        assertArrayEquals(input, output)
     }
 
     @Test

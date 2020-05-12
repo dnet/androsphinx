@@ -20,16 +20,4 @@ class MockCredentialStore : Protocol.CredentialStore {
 
     override val key: MasterKey
         get() = MasterKey.fromByteArray(Base64.decode(MOCK_KEY, Base64.DEFAULT))
-
-
-    override fun cacheUser(hostId: ByteArray, username: String) {
-        users.getOrPut(BigInteger(hostId), ::mutableSetOf).add(username)
-    }
-
-    override fun deleteUser(hostId: ByteArray, username: String) {
-        users[BigInteger(hostId)]?.remove(username)
-    }
-
-    override fun getUsers(hostId: ByteArray): List<String> =
-        users[BigInteger(hostId)]?.toList() ?: emptyList()
 }
