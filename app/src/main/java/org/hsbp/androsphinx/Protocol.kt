@@ -109,14 +109,19 @@ class Protocol {
             val hostSk = cs.getSignKey(hostId)
 
             val usernameList = receiveUsernameList(socket, sealKey)
-            val prefix = if (usernameList.isEmpty()) hostSk.publicKey else ByteArray(0)
             val users = update(usernameList) ?: return
 
             val (nonce, encrypted) = sealKey.encrypt(users.joinToString("\u0000").toByteArray())
-            val lengthBytes = ByteBuffer.allocate(2).order(ByteOrder.BIG_ENDIAN).putShort(
-                (nonce.size + encrypted.size).toShort()
-            ).array()
-            val message = prefix + lengthBytes + nonce + encrypted
+            val payloadSize = nonce.size + encrypted.size
+            val envelope = if (usernameList.isEmpty()) {
+                ByteBuffer.allocate(SodiumConstants.PUBLICKEY_BYTES + 2 + payloadSize).put(hostSk.publicKey)
+            } else {
+                ByteBuffer.allocate(2 + payloadSize)
+            }.order(ByteOrder.BIG_ENDIAN)
+            envelope.putShort(payloadSize.toShort())
+            envelope.put(nonce)
+            envelope.put(encrypted)
+            val message = envelope.array()
             sos.write(message + hostSk.sign(message))
         }
 
