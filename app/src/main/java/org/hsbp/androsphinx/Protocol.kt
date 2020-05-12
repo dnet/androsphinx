@@ -16,9 +16,9 @@ const val AUTH_NONCE_BYTES: Int = 32
 const val ENCRYPTED_RULE_LENGTH: Int = SodiumConstants.XSALSA20_POLY1305_SECRETBOX_NONCEBYTES + SodiumConstants.MAC_BYTES + RULE_BYTES_LENGTH
 
 class Protocol {
-    enum class Command(val code: Byte, val requiresAuth: Boolean = true, val rewriteRule: Boolean = false) {
-        CREATE(0x00), READ(0x33), UNDO(0x55, rewriteRule = true),
-        GET(0x66, requiresAuth = false), COMMIT(0x99.toByte(), rewriteRule = true),
+    enum class Command(val code: Byte, val requiresAuth: Boolean = true, val writeRule: Boolean = false) {
+        CREATE(0x00, requiresAuth = false, writeRule = true), READ(0x33), UNDO(0x55, writeRule = true),
+        GET(0x66, requiresAuth = false), COMMIT(0x99.toByte(), writeRule = true),
         CHANGE(0xAA.toByte()), WRITE(0xCC.toByte()), DELETE(0xFF.toByte());
 
         fun send(socket: Socket, id: ByteArray, challenge: Sphinx.Challenge, cs: CredentialStore? = null): ByteArray {
@@ -31,24 +31,34 @@ class Protocol {
         }
 
         @Suppress("UsePropertyAccessSyntax")
-        fun execute(realm: Realm, password: CharArray, cs: CredentialStore, callback: PasswordCallback) {
+        fun execute(realm: Realm, password: CharArray, cs: CredentialStore, callback: PasswordCallback,
+                    createRule: Pair<Set<CharacterClass>, Int>? = null) {
             val hostId = realm.hash(cs)
-            val authId = if (requiresAuth) hostId else null
             Sphinx.Challenge(password).use { challenge ->
                 val derived = cs.createSocket().use { s ->
                     val sis = s.getInputStream()
                     val oldRwd = send(s, hostId, challenge, if (requiresAuth) cs else null)
                     val newRwd = if (requiresAuth) challenge.finish(sis) else oldRwd
-                    val encryptedRule = ByteArray(ENCRYPTED_RULE_LENGTH)
-                    sis.read(encryptedRule)
 
-                    val ruleBytes = cs.getSealKey(oldRwd).decrypt(encryptedRule)
-                    val combined = ByteBuffer.wrap(ruleBytes).order(ByteOrder.BIG_ENDIAN).getShort().toInt()
-                    val size = combined and SIZE_MASK
-                    val rule = CharacterClass.parse((combined shr RULE_SHIFT).toByte())
+                    val (rule, size) = if (createRule == null) {
+                        val encryptedRule = ByteArray(ENCRYPTED_RULE_LENGTH)
+                        sis.read(encryptedRule)
 
-                    if (rewriteRule) {
-                        sendRule(s, rule, size, cs.getSealKey(newRwd), cs.getSignKey(authId!!, newRwd))
+                        val ruleBytes = cs.getSealKey(oldRwd).decrypt(encryptedRule)
+                        val combined =
+                            ByteBuffer.wrap(ruleBytes).order(ByteOrder.BIG_ENDIAN).getShort()
+                                .toInt()
+                        val size = combined and SIZE_MASK
+                        val rule = CharacterClass.parse((combined shr RULE_SHIFT).toByte())
+                        rule to size
+                    } else createRule
+
+                    if (writeRule) {
+                        sendRule(s, rule, size, cs.getSealKey(newRwd), cs.getSignKey(hostId, newRwd))
+                    }
+
+                    if (createRule != null) {
+                        updateUserList(s, cs, realm) { users -> users + realm.username }
                     }
 
                     CharacterClass.derive(Context.PASSWORD.foldHash(newRwd), rule, size)
@@ -84,19 +94,7 @@ class Protocol {
         fun create(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
                    cs: CredentialStore, callback: PasswordCallback, size: Int = 0) {
             require(charClasses.isNotEmpty()) { "At least one character class must be allowed." }
-
-            val rwd = cs.createSocket().use { socket ->
-                val id = realm.hash(cs)
-                val rwd = Sphinx.Challenge(password).use { challenge ->
-                    Command.CREATE.send(socket, id, challenge)
-                }
-                sendRule(socket, charClasses, size, cs.getSealKey(rwd), cs.getSignKey(id, rwd))
-                updateUserList(socket, cs, realm) { users -> users + realm.username }
-
-                rwd
-            }
-
-            callback.passwordReceived(CharacterClass.derive(Context.PASSWORD.foldHash(rwd), charClasses, size))
+            Command.CREATE.execute(realm, password, cs, callback, charClasses to size)
         }
 
         fun get(password: CharArray, realm: Realm, cs: CredentialStore, callback: PasswordCallback) {
