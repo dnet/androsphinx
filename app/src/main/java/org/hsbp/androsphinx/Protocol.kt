@@ -70,7 +70,11 @@ class Protocol {
                 val sos = socket.getOutputStream()
                 val id = realm.hash(cs)
                 val rwd = Sphinx.Challenge(password).use { challenge ->
-                    sos.write(byteArrayOf(Command.CREATE.code) + id + challenge.challenge)
+                    val message = ByteBuffer.allocate(DECAF_255_SER_BYTES + Sodium.crypto_generichash_bytes() + 1)
+                    message.put(Command.CREATE.code)
+                    message.put(id)
+                    message.put(challenge.challenge)
+                    sos.write(message.array())
                     val response = ByteArray(32)
                     sis.read(response)
                     challenge.finish(response) ?: throw ServerFailureException()
