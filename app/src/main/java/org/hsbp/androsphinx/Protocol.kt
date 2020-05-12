@@ -99,32 +99,6 @@ class Protocol {
             callback.passwordReceived(CharacterClass.derive(Context.PASSWORD.foldHash(rwd), charClasses, size))
         }
 
-        private fun updateUserList(socket: Socket, cs: CredentialStore, realm: Realm, update: (Set<String>) -> Set<String>?) {
-            val sos = socket.getOutputStream()
-            val hostId = realm.withoutUser.hash(cs)
-
-            sos.write(hostId)
-
-            val sealKey = cs.getSealKey()
-            val hostSk = cs.getSignKey(hostId)
-
-            val usernameList = receiveUsernameList(socket, sealKey)
-            val users = update(usernameList) ?: return
-
-            val (nonce, encrypted) = sealKey.encrypt(users.joinToString("\u0000").toByteArray())
-            val payloadSize = nonce.size + encrypted.size
-            val envelope = if (usernameList.isEmpty()) {
-                ByteBuffer.allocate(SodiumConstants.PUBLICKEY_BYTES + 2 + payloadSize).put(hostSk.publicKey)
-            } else {
-                ByteBuffer.allocate(2 + payloadSize)
-            }.order(ByteOrder.BIG_ENDIAN)
-            envelope.putShort(payloadSize.toShort())
-            envelope.put(nonce)
-            envelope.put(encrypted)
-            val message = envelope.array()
-            sos.write(message + hostSk.sign(message))
-        }
-
         fun get(password: CharArray, realm: Realm, cs: CredentialStore, callback: PasswordCallback) {
             Command.GET.execute(realm, password, cs, callback)
         }
@@ -164,6 +138,33 @@ class Protocol {
             }
         }
     }
+}
+
+private fun updateUserList(socket: Socket, cs: Protocol.CredentialStore, realm: Protocol.Realm,
+                           update: (Set<String>) -> Set<String>?) {
+    val sos = socket.getOutputStream()
+    val hostId = realm.withoutUser.hash(cs)
+
+    sos.write(hostId)
+
+    val sealKey = cs.getSealKey()
+    val hostSk = cs.getSignKey(hostId)
+
+    val usernameList = receiveUsernameList(socket, sealKey)
+    val users = update(usernameList) ?: return
+
+    val (nonce, encrypted) = sealKey.encrypt(users.joinToString("\u0000").toByteArray())
+    val payloadSize = nonce.size + encrypted.size
+    val envelope = if (usernameList.isEmpty()) {
+        ByteBuffer.allocate(SodiumConstants.PUBLICKEY_BYTES + 2 + payloadSize).put(hostSk.publicKey)
+    } else {
+        ByteBuffer.allocate(2 + payloadSize)
+    }.order(ByteOrder.BIG_ENDIAN)
+    envelope.putShort(payloadSize.toShort())
+    envelope.put(nonce)
+    envelope.put(encrypted)
+    val message = envelope.array()
+    sos.write(message + hostSk.sign(message))
 }
 
 fun Sphinx.Challenge.finish(stream: InputStream): ByteArray {
