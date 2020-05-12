@@ -143,6 +143,7 @@ class ExampleInstrumentedTest {
     }
 
     @Test
+    @Suppress("SpellCheckingInspection")
     fun readEvalPrintLoopTest() {
         NaCl.sodium()
         ServerSocket(2355).accept().use { socket ->
