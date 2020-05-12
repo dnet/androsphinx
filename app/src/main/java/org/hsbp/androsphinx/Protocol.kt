@@ -76,7 +76,7 @@ class Protocol {
                     challenge.finish(response) ?: throw ServerFailureException()
                 }
                 sendRule(socket, charClasses, size, cs.getSealKey(rwd), cs.getSignKey(id, rwd))
-                updateUserList(socket, cs, realm)
+                updateUserList(socket, cs, realm) { users -> users + realm.username }
 
                 rwd
             }
@@ -84,7 +84,7 @@ class Protocol {
             callback.passwordReceived(CharacterClass.derive(Context.PASSWORD.foldHash(rwd), charClasses, size))
         }
 
-        private fun updateUserList(socket: Socket, cs: CredentialStore, realm: Realm) {
+        private fun updateUserList(socket: Socket, cs: CredentialStore, realm: Realm, update: (Set<String>) -> Set<String>?) {
             val sos = socket.getOutputStream()
             val hostId = realm.withoutUser.hash(cs)
 
@@ -95,7 +95,7 @@ class Protocol {
 
             val usernameList = receiveUsernameList(socket, sealKey)
             val prefix = if (usernameList.isEmpty()) hostSk.publicKey.asBytes else ByteArray(0)
-            val users = usernameList + realm.username
+            val users = update(usernameList) ?: return
 
             val (nonce, encrypted) = sealKey.encrypt(users.joinToString("\u0000").toByteArray())
             val lengthBytes = ByteBuffer.allocate(2).order(ByteOrder.BIG_ENDIAN).putShort(
