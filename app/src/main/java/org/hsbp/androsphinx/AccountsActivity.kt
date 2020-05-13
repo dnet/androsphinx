@@ -88,9 +88,12 @@ class AccountsActivity : AppCompatActivity() {
                     if (pw == null) {
                         handleError(R.string.internal_error_title)
                     } else {
-                        // TODO success
-                        println(String(pw))
                         updateUserList(realm.hostname)
+                        val clipboard =
+                            getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("password", String(pw))
+                        clipboard.setPrimaryClip(clip)
+                        Snackbar.make(fab, "Password has been copied to the clipboard", Snackbar.LENGTH_LONG).show()
                     }
                 }
                 is Protocol.ServerFailureException -> handleError(R.string.server_error_title)
