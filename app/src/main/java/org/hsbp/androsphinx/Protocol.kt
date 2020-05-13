@@ -203,17 +203,10 @@ fun Protocol.CredentialStore.getSealKey(rwd: ByteArray = ByteArray(0)): SecretBo
 
 fun Protocol.CredentialStore.auth(socket: Socket, hostId: ByteArray, challenge: Sphinx.Challenge? = null): ByteArray {
     val sis = socket.getInputStream()
-    val sos = socket.getOutputStream()
+    val rwd = challenge?.finish(sis) ?: ByteArray(0)
     val nonce = ByteArray(AUTH_NONCE_BYTES)
-    val rwd = if (challenge == null) {
-        if (sis.read(nonce) != nonce.size) throw Protocol.ServerFailureException()
-        ByteArray(0)
-    } else {
-        val rwd = challenge.finish(sis)
-        if (sis.read(nonce) != nonce.size) throw Protocol.ServerFailureException()
-        rwd
-    }
-    sos.write(getSignKey(hostId, rwd).sign(nonce))
+    if (sis.read(nonce) != nonce.size) throw Protocol.ServerFailureException()
+    socket.getOutputStream().write(getSignKey(hostId, rwd).sign(nonce))
     return rwd
 }
 
