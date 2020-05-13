@@ -63,7 +63,7 @@ This could be generated this way using qrencode (Debian/Ubuntu package: `qrencod
 	(printf '\x00' ;
 		printf '\x09\x33%s' "example.com") | qrencode -8 -t ANSI256
 
-	(printf '\x01' ; cat ~/.sphinx/key ;
+	(printf '\x01' ; cat ~/.sphinx/masterkey ;
 		printf '\x09\x33%s' "example.com") | qrencode -8 -t ANSI256
 
 In the above case, 0x0933 is port 2355 (the default port). Extra care must be
@@ -112,4 +112,4 @@ parameter for the relevant commands.
 If you indend to check whether SPHINX entries created by one implementation
 can be read by another, make sure that `key` also matches the one
 defined in the class `MockCredentialStore`. For example, in `pwdsphinx`, this
-can be found in the file `~/.sphinx/key`.
+can be found in the file `~/.sphinx/masterkey`.
