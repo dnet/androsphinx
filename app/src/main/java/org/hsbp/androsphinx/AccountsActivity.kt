@@ -19,6 +19,9 @@ import java.lang.Exception
 import java.net.MalformedURLException
 import java.net.URL
 import java.util.*
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 
 class AccountsActivity : AppCompatActivity() {
 
@@ -58,6 +61,51 @@ class AccountsActivity : AppCompatActivity() {
         private fun handleError(message: Int) {
             Snackbar.make(fab, message, Snackbar.LENGTH_LONG).setAction(R.string.retry) {
                 UpdateUserListTask(hostname).execute()
+            }.show()
+        }
+    }
+
+    inner class GenerateTask(private val masterPassword: CharArray,
+                             private val realm: Protocol.Realm) : AsyncTask<Void, Void, Exception?>(), Protocol.PasswordCallback {
+        private var passwordReceived: CharArray? = null
+
+        override fun passwordReceived(password: CharArray) {
+            passwordReceived = password
+        }
+
+        override fun doInBackground(vararg p0: Void?): Exception? {
+            return try {
+                Protocol.get(masterPassword, realm, cs, this)
+                null
+            } catch (e: Exception) {
+                e
+            }
+        }
+
+        override fun onPostExecute(result: Exception?) {
+            when (result) {
+                null -> {
+                    val pw = passwordReceived
+                    if (pw == null) {
+                        handleError(R.string.internal_error_title)
+                    } else {
+                        val clipboard =
+                            getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("password", String(pw))
+                        clipboard.setPrimaryClip(clip)
+                        Snackbar.make(fab, "Password has been copied to the clipboard", Snackbar.LENGTH_LONG).show()
+                    }
+                }
+                is Protocol.ServerFailureException -> handleError(R.string.server_error_title)
+                is SodiumException -> handleError(R.string.sodium_error_title)
+                is IOException -> handleError(R.string.io_error_title)
+                else -> handleError(R.string.unknown_error_title)
+            }
+        }
+
+        private fun handleError(message: Int) {
+            Snackbar.make(fab, message, Snackbar.LENGTH_LONG).setAction(R.string.retry) {
+                GenerateTask(masterPassword, realm).execute()
             }.show()
         }
     }
@@ -131,6 +179,11 @@ class AccountsActivity : AppCompatActivity() {
                         startActivity(Intent(this, SettingsActivity::class.java))
                     }.show()
                     return
+                }
+
+                userList.setOnItemClickListener { adapterView, view, i, l ->
+                    val username = (adapterView.getItemAtPosition(i) as UserProxy).username
+                    if (username != null) showUser(Protocol.Realm(username, hostname))
                 }
 
                 fab.setOnClickListener { view ->
@@ -211,6 +264,53 @@ class AccountsActivity : AppCompatActivity() {
         }
 
         updateEnabled()
+    }
+
+    private fun showUser(realm: Protocol.Realm) {
+        val linearLayout = LinearLayout(this)
+        linearLayout.orientation = LinearLayout.VERTICAL
+
+        val masterPassword = EditText(this)
+        masterPassword.inputType = InputType.TYPE_TEXT_VARIATION_PASSWORD or InputType.TYPE_CLASS_TEXT
+        masterPassword.setHint(R.string.master_password)
+        linearLayout.addView(masterPassword)
+
+        val btnGenerate = Button(this).apply { text = "Generate and copy password" }
+        linearLayout.addView(btnGenerate)
+        val btnChange = Button(this).apply { text = "Generate new password" }
+        linearLayout.addView(btnChange)
+        val btnDelete = Button(this).apply { text = "Delete user" }
+        linearLayout.addView(btnDelete)
+
+        val alertDialog = with(AlertDialog.Builder(this)) {
+            setTitle(realm.username)
+            setView(linearLayout)
+            setNeutralButton(android.R.string.cancel, null)
+        }.show()
+
+        btnGenerate.setOnClickListener {
+            GenerateTask(masterPassword.text.asCharArray, realm).execute()
+            alertDialog.dismiss()
+        }
+
+        btnChange.setOnClickListener {
+            val pw = masterPassword.text.asCharArray
+            // TODO ChangeTask(pw, realm).execute()
+            alertDialog.dismiss()
+        }
+
+        btnDelete.setOnClickListener {
+            with(AlertDialog.Builder(this)) {
+                setTitle("Confirm deletion")
+                setMessage("Are you sure you want to delete ${realm.username} from ${realm.hostname}? This cannot be undone.")
+                setPositiveButton("Delete") { _, _ ->
+                    val pw = masterPassword.text.asCharArray
+                    // TODO DeleteTask(pw, realm).execute()
+                    alertDialog.dismiss()
+                }
+                setNeutralButton("Keep", null)
+            }.show()
+        }
     }
 
     private fun updateUserList(hostname: String) {
