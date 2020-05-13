@@ -29,7 +29,8 @@ class Protocol {
                     message.put(id)
                     message.put(challenge.challenge)
                     socket.getOutputStream().write(message.array())
-                    val rwd = if (requiresAuth) cs.auth(socket, id, challenge) else challenge.finish(socket.getInputStream())
+                    val rwd = challenge.finish(socket.getInputStream())
+                    if (requiresAuth) cs.auth(socket, id, rwd)
                     return body(socket, challenge, rwd)
                 }
             }
@@ -44,10 +45,7 @@ class Protocol {
                 val newRwd = if (requiresAuth) challenge.finish(sis) else oldRwd
 
                 val (rule, size) = if (createRule == null) {
-                    val encryptedRule = ByteArray(ENCRYPTED_RULE_LENGTH)
-                    sis.read(encryptedRule)
-
-                    val ruleBytes = cs.getSealKey(oldRwd).decrypt(encryptedRule)
+                    val ruleBytes = cs.getSealKey(oldRwd).decrypt(sis.readExactly(ENCRYPTED_RULE_LENGTH))
                     val combined =
                         ByteBuffer.wrap(ruleBytes).order(ByteOrder.BIG_ENDIAN).getShort()
                             .toInt()
@@ -164,11 +162,8 @@ private fun updateUserList(socket: Socket, cs: Protocol.CredentialStore, realm: 
     sos.write(message + hostSk.sign(message))
 }
 
-fun Sphinx.Challenge.finish(stream: InputStream): ByteArray {
-    val response = ByteArray(DECAF_255_SER_BYTES)
-    if (stream.read(response) != DECAF_255_SER_BYTES) throw Protocol.ServerFailureException()
-    return finish(response) ?: throw Protocol.ServerFailureException()
-}
+fun Sphinx.Challenge.finish(stream: InputStream): ByteArray =
+    finish(stream.readExactly(DECAF_255_SER_BYTES)) ?: throw Protocol.ServerFailureException()
 
 fun sendRule(socket: Socket, charClasses: Set<CharacterClass>, size: Int, sealKey: SecretBoxKey, signKey: Ed25519PrivateKey) {
     val rule = (CharacterClass.serialize(charClasses).toInt() shl RULE_SHIFT) or (size and SIZE_MASK)
@@ -182,8 +177,7 @@ private fun receiveUsernameList(socket: Socket, key: SecretBoxKey): Set<String> 
     val source = socket.getInputStream()
     val length = source.readBE16()
     if (length == 0) return emptySet()
-    val blob = ByteArray(length)
-    source.read(blob)
+    val blob = source.readExactly(length)
     if (blob.equalsString("fail")) throw Protocol.ServerFailureException()
     return String(key.decrypt(blob)).split('\u0000').toSortedSet()
 }
@@ -195,19 +189,21 @@ private fun InputStream.readBE16(): Int {
     return ByteBuffer.wrap(len).order(ByteOrder.BIG_ENDIAN).getInt()
 }
 
+private fun InputStream.readExactly(length: Int): ByteArray {
+    val buffer = ByteArray(length)
+    if (read(buffer) != length) throw Protocol.ServerFailureException()
+    return buffer
+}
+
 fun Protocol.CredentialStore.getSignKey(id: ByteArray, rwd: ByteArray = ByteArray(0)): Ed25519PrivateKey =
     Ed25519PrivateKey.fromSeed(key.foldHash(Context.SIGNING, id, rwd))
 
 fun Protocol.CredentialStore.getSealKey(rwd: ByteArray = ByteArray(0)): SecretBoxKey =
     SecretBoxKey.fromByteArray(key.foldHash(Context.ENCRYPTION, rwd))
 
-fun Protocol.CredentialStore.auth(socket: Socket, hostId: ByteArray, challenge: Sphinx.Challenge? = null): ByteArray {
-    val sis = socket.getInputStream()
-    val rwd = challenge?.finish(sis) ?: ByteArray(0)
-    val nonce = ByteArray(AUTH_NONCE_BYTES)
-    if (sis.read(nonce) != nonce.size) throw Protocol.ServerFailureException()
+fun Protocol.CredentialStore.auth(socket: Socket, hostId: ByteArray, rwd: ByteArray = ByteArray(0)) {
+    val nonce = socket.getInputStream().readExactly(AUTH_NONCE_BYTES)
     socket.getOutputStream().write(getSignKey(hostId, rwd).sign(nonce))
-    return rwd
 }
 
 fun Protocol.CredentialStore.createSocket(): Socket =
