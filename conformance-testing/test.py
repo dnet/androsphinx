@@ -61,7 +61,7 @@ class Tester(object):
                 assert ps_pw == as_pw, f"{size} of {chars!r} <- {ps_pw!r} != {as_pw!r}"
 
                 as_pw = self.asrepl_cmd("change", master_pwd, username, hostname)
-                self.pwdsphinx_cmd("", "commit", username, hostname)
+                self.pwdsphinx_cmd(master_pwd, "commit", username, hostname)
                 ps_pw = self.pwdsphinx_cmd(master_pwd, "get", username, hostname)
                 assert ps_pw == as_pw, f"{size} of {chars!r} <= {ps_pw!r} != {as_pw!r}"
         print(file=stderr)
