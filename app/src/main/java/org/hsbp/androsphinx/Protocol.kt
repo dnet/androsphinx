@@ -70,7 +70,7 @@ class Protocol {
     }
 
     class Realm(val username: String, val hostname: String) {
-        fun hash(cs: CredentialStore) = cs.key.foldHash(Context.SALT, "$username|$hostname".toByteArray())
+        fun hash(cs: CredentialStore) = genericHash("$username|$hostname".toByteArray(), cs.key.foldHash(Context.SALT))
 
         val withoutUser: Realm
             get() = Realm(username = "", hostname = hostname)

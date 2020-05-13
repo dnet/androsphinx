@@ -15,13 +15,14 @@ enum class Context(private val value: String) {
     SALT("sphinx host salt"),
     PASSWORD("sphinx password context");
 
-    fun foldHash(vararg messages: ByteArray): ByteArray {
-        return messages.fold(value.toByteArray()) { message, salt ->
-            val result = ByteArray(Sodium.crypto_generichash_bytes())
-            Sodium.crypto_generichash(result, result.size, message, message.size, salt, salt.size)
-            result
-        }
-    }
+    fun foldHash(vararg messages: ByteArray): ByteArray =
+        messages.fold(value.toByteArray(), ::genericHash)
+}
+
+fun genericHash(message: ByteArray, salt: ByteArray): ByteArray {
+    val result = ByteArray(Sodium.crypto_generichash_bytes())
+    Sodium.crypto_generichash(result, result.size, message, message.size, salt, salt.size)
+    return result
 }
 
 inline class MasterKey(private val salt: ByteArray) {
