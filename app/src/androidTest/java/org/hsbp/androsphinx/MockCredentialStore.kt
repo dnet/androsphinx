@@ -7,7 +7,7 @@ const val MOCK_KEY = "qshl2mv7A76V2io93b2oS9cjNTTupuWFf7z10aJP5LM="
 
 class MockCredentialStore : Protocol.CredentialStore {
     override val host: String
-        get() = "10.0.2.2"
+        get() = "sphinx-test.silentsignal.hu"
 
     override val port: Int
         get() = 2355
