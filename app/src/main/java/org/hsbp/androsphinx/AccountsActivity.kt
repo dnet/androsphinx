@@ -24,6 +24,44 @@ class AccountsActivity : AppCompatActivity() {
 
     private val cs = AndroidCredentialStore(this)
 
+    inner class UpdateUserListTask(private val hostname: String) : AsyncTask<Void, Void, Exception?>() {
+
+        private var users: Set<String> = emptySet()
+
+        override fun doInBackground(vararg p0: Void?): Exception? {
+            return try {
+                users = Protocol.list(hostname, cs)
+                null
+            } catch (e: Exception) {
+                e
+            }
+        }
+
+        override fun onPostExecute(result: Exception?) {
+            when (result) {
+                null -> {
+                    val objects = if (users.isEmpty()) {
+                        arrayOf(UserProxy(null))
+                    } else {
+                        users.map(::UserProxy).toTypedArray()
+                    }
+                    userList.adapter =
+                        ArrayAdapter<UserProxy>(this@AccountsActivity, android.R.layout.simple_list_item_1, objects)
+                }
+                is Protocol.ServerFailureException -> handleError(R.string.server_error_title)
+                is SodiumException -> handleError(R.string.sodium_error_title)
+                is IOException -> handleError(R.string.io_error_title)
+                else -> handleError(R.string.unknown_error_title)
+            }
+        }
+
+        private fun handleError(message: Int) {
+            Snackbar.make(fab, message, Snackbar.LENGTH_LONG).setAction(R.string.retry) {
+                UpdateUserListTask(hostname).execute()
+            }.show()
+        }
+    }
+
     inner class CreateTask(private val masterPassword: CharArray, private val realm: Protocol.Realm,
                      private val charClasses: Set<CharacterClass>,
                      private val size: Int) : AsyncTask<Void, Void, Exception?>(), Protocol.PasswordCallback {
@@ -83,7 +121,14 @@ class AccountsActivity : AppCompatActivity() {
                 }
                 title = hostname
 
-                updateUserList(hostname)
+                if (cs.isSetUpForCommunication) {
+                    updateUserList(hostname)
+                } else {
+                    Snackbar.make(window.decorView, R.string.no_server_setup, Snackbar.LENGTH_LONG).setAction(R.string.open_settings) {
+                        startActivity(Intent(this, SettingsActivity::class.java))
+                    }.show()
+                    return
+                }
 
                 fab.setOnClickListener { view ->
                     addUser(hostname, view)
@@ -166,17 +211,10 @@ class AccountsActivity : AppCompatActivity() {
     }
 
     private fun updateUserList(hostname: String) {
-        val users = Protocol.list(hostname, cs)
-        val objects = if (users.isEmpty()) {
-            arrayOf(UserProxy(null))
-        } else {
-            users.map(::UserProxy).toTypedArray()
-        }
-        userList.adapter =
-            ArrayAdapter<UserProxy>(this, android.R.layout.simple_list_item_1, objects)
+        UpdateUserListTask(hostname).execute()
     }
 
-    inner class UserProxy(private val username: String?) {
+    inner class UserProxy(val username: String?) {
         override fun toString(): String = username ?: getString(R.string.no_users_for_host)
     }
 }
