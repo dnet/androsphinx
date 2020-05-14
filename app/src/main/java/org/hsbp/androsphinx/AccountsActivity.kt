@@ -275,11 +275,11 @@ class AccountsActivity : AppCompatActivity() {
         masterPassword.setHint(R.string.master_password)
         linearLayout.addView(masterPassword)
 
-        val btnGenerate = Button(this).apply { text = "Generate and copy password" }
+        val btnGenerate = Button(this).apply { setText(R.string.btn_generate_copy) }
         linearLayout.addView(btnGenerate)
-        val btnChange = Button(this).apply { text = "Generate new password" }
+        val btnChange = Button(this).apply { setText(R.string.btn_generate_change) }
         linearLayout.addView(btnChange)
-        val btnDelete = Button(this).apply { text = "Delete user" }
+        val btnDelete = Button(this).apply { setText(R.string.btn_delete_user) }
         linearLayout.addView(btnDelete)
 
         val alertDialog = with(AlertDialog.Builder(this)) {
@@ -301,8 +301,8 @@ class AccountsActivity : AppCompatActivity() {
 
         btnDelete.setOnClickListener {
             with(AlertDialog.Builder(this)) {
-                setTitle("Confirm deletion")
-                setMessage("Are you sure you want to delete ${realm.username} from ${realm.hostname}? This cannot be undone.")
+                setTitle(R.string.confirm_delete_user_title)
+                setMessage(getString(R.string.confirm_delete_user_msg, realm.username, realm.hostname))
                 setPositiveButton("Delete") { _, _ ->
                     val pw = masterPassword.text.asCharArray
                     // TODO DeleteTask(pw, realm).execute()

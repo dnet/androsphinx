@@ -33,4 +33,9 @@
     <string name="no_server_setup">Server configuration is incomplete</string>
     <string name="open_settings">Open settings</string>
     <string name="retry">Retry</string>
+    <string name="btn_generate_copy">Generate and copy new password</string>
+    <string name="btn_generate_change">Generate new password</string>
+    <string name="btn_delete_user">Delete user</string>
+    <string name="confirm_delete_user_title">Confirm deletion</string>
+    <string name="confirm_delete_user_msg">Are you sure you want to delete %1$s from %2$s This cannot be undone.</string>
 </resources>
