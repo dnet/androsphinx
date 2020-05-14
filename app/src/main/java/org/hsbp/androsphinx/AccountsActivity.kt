@@ -23,9 +23,12 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 
+private const val USERS_BEING_CHANGED_KEY = "org.hsbp.androsphinx.AccountsActivity.USERS_BEING_CHANGED_KEY"
+
 class AccountsActivity : AppCompatActivity() {
 
     private val cs = AndroidCredentialStore(this)
+    private var usersBeingChanged = HashSet<Protocol.Realm>()
 
     inner class UpdateUserListTask(private val hostname: String) : AsyncTask<Void, Void, Exception?>() {
 
@@ -106,6 +109,162 @@ class AccountsActivity : AppCompatActivity() {
                         clipboard.setPrimaryClip(clip)
                         Snackbar.make(fab, R.string.password_copied_to_clipboard, Snackbar.LENGTH_LONG).show()
                         alertDialog.dismiss()
+                    }
+                }
+                is Protocol.ServerFailureException -> handleError(R.string.server_error_password_title)
+                is SodiumException -> handleError(R.string.sodium_error_title)
+                is IOException -> handleError(R.string.io_error_title)
+                else -> handleError(R.string.unknown_error_title)
+            }
+        }
+
+        private fun handleError(message: Int) {
+            feedbackLabel.setText(message)
+        }
+    }
+
+    inner class ChangeTask(private val masterPassword: CharArray,
+                           private val realm: Protocol.Realm,
+                           private val alertDialog: AlertDialog,
+                           private val feedbackLabel: TextView) : AsyncTask<Void, Void, Exception?>(), Protocol.PasswordCallback {
+        private var passwordReceived: CharArray? = null
+
+        override fun passwordReceived(password: CharArray) {
+            passwordReceived = password
+        }
+
+        override fun onPreExecute() {
+            feedbackLabel.setText(R.string.connecting_to_server)
+        }
+
+        override fun doInBackground(vararg p0: Void?): Exception? {
+            return try {
+                Protocol.change(masterPassword, realm, cs, this)
+                null
+            } catch (e: Exception) {
+                e
+            }
+        }
+
+        override fun onPostExecute(result: Exception?) {
+            when (result) {
+                null -> {
+                    val pw = passwordReceived
+                    if (pw == null) {
+                        handleError(R.string.internal_error_title)
+                    } else {
+                        val clipboard =
+                            getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("password", String(pw))
+                        clipboard.setPrimaryClip(clip)
+                        Snackbar.make(fab, R.string.new_password_copied_to_clipboard, Snackbar.LENGTH_LONG).setAction(R.string.undo) {
+                            val (newAlertDialog, newFeedbackLabel) = showUser(realm, masterPassword)
+                            UndoTask(masterPassword, realm, newAlertDialog, newFeedbackLabel).execute()
+                        }.show()
+                        alertDialog.dismiss()
+                        usersBeingChanged.add(realm)
+                    }
+                }
+                is Protocol.ServerFailureException -> handleError(R.string.server_error_password_title)
+                is SodiumException -> handleError(R.string.sodium_error_title)
+                is IOException -> handleError(R.string.io_error_title)
+                else -> handleError(R.string.unknown_error_title)
+            }
+        }
+
+        private fun handleError(message: Int) {
+            feedbackLabel.setText(message)
+        }
+    }
+
+    inner class UndoTask(private val masterPassword: CharArray,
+                           private val realm: Protocol.Realm,
+                           private val alertDialog: AlertDialog,
+                           private val feedbackLabel: TextView) : AsyncTask<Void, Void, Exception?>(), Protocol.PasswordCallback {
+        private var passwordReceived: CharArray? = null
+
+        override fun passwordReceived(password: CharArray) {
+            passwordReceived = password
+        }
+
+        override fun onPreExecute() {
+            feedbackLabel.setText(R.string.connecting_to_server)
+        }
+
+        override fun doInBackground(vararg p0: Void?): Exception? {
+            return try {
+                Protocol.undo(masterPassword, realm, cs, this)
+                null
+            } catch (e: Exception) {
+                e
+            }
+        }
+
+        override fun onPostExecute(result: Exception?) {
+            when (result) {
+                null -> {
+                    val pw = passwordReceived
+                    if (pw == null) {
+                        handleError(R.string.internal_error_title)
+                    } else {
+                        val clipboard =
+                            getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("password", String(pw))
+                        clipboard.setPrimaryClip(clip)
+                        Snackbar.make(fab, R.string.old_password_copied_to_clipboard, Snackbar.LENGTH_LONG).show()
+                        alertDialog.dismiss()
+                        usersBeingChanged.remove(realm)
+                    }
+                }
+                is Protocol.ServerFailureException -> handleError(R.string.server_error_password_title)
+                is SodiumException -> handleError(R.string.sodium_error_title)
+                is IOException -> handleError(R.string.io_error_title)
+                else -> handleError(R.string.unknown_error_title)
+            }
+        }
+
+        private fun handleError(message: Int) {
+            feedbackLabel.setText(message)
+        }
+    }
+
+    inner class CommitTask(private val masterPassword: CharArray,
+                           private val realm: Protocol.Realm,
+                           private val alertDialog: AlertDialog,
+                           private val feedbackLabel: TextView) : AsyncTask<Void, Void, Exception?>(), Protocol.PasswordCallback {
+        private var passwordReceived: CharArray? = null
+
+        override fun passwordReceived(password: CharArray) {
+            passwordReceived = password
+        }
+
+        override fun onPreExecute() {
+            feedbackLabel.setText(R.string.connecting_to_server)
+        }
+
+        override fun doInBackground(vararg p0: Void?): Exception? {
+            return try {
+                Protocol.commit(masterPassword, realm, cs, this)
+                null
+            } catch (e: Exception) {
+                e
+            }
+        }
+
+        override fun onPostExecute(result: Exception?) {
+            when (result) {
+                null -> {
+                    val pw = passwordReceived
+                    if (pw == null) {
+                        handleError(R.string.internal_error_title)
+                    } else {
+                        val clipboard =
+                            getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("password", String(pw))
+                        clipboard.setPrimaryClip(clip)
+                        Snackbar.make(fab, R.string.new_password_copied_to_clipboard, Snackbar.LENGTH_LONG).show()
+                        alertDialog.dismiss()
+                        usersBeingChanged.remove(realm)
                     }
                 }
                 is Protocol.ServerFailureException -> handleError(R.string.server_error_password_title)
@@ -208,6 +367,9 @@ class AccountsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_accounts)
         setSupportActionBar(toolbar)
+
+        val ubc = savedInstanceState?.getSerializable(USERS_BEING_CHANGED_KEY)
+        if (ubc != null) usersBeingChanged = ubc as HashSet<Protocol.Realm>
 
         if (Intent.ACTION_SEARCH == intent.action) {
             intent.getStringExtra(SearchManager.QUERY)?.also { query ->
@@ -316,11 +478,13 @@ class AccountsActivity : AppCompatActivity() {
         updateEnabled()
     }
 
-    private fun showUser(realm: Protocol.Realm) {
+    private fun showUser(realm: Protocol.Realm, masterPasswordInit: CharArray? = null): Pair<AlertDialog, TextView> {
+        val changeMode = realm in usersBeingChanged
         val linearLayout = LinearLayout(this)
         linearLayout.orientation = LinearLayout.VERTICAL
 
         val masterPassword = EditText(this)
+        if (masterPasswordInit != null) masterPassword.setText(masterPasswordInit, 0, masterPasswordInit.size)
         masterPassword.inputType = InputType.TYPE_TEXT_VARIATION_PASSWORD or InputType.TYPE_CLASS_TEXT
         masterPassword.setHint(R.string.master_password)
         linearLayout.addView(masterPassword)
@@ -329,10 +493,19 @@ class AccountsActivity : AppCompatActivity() {
         linearLayout.addView(feedbackLabel)
 
         val btnGenerate = Button(this).apply { setText(R.string.btn_generate_copy) }
-        linearLayout.addView(btnGenerate)
         val btnChange = Button(this).apply { setText(R.string.btn_generate_change) }
-        linearLayout.addView(btnChange)
+        val btnUndo = Button(this).apply { setText(R.string.btn_undo_change) }
+        val btnCommit = Button(this).apply { setText(R.string.btn_commit_change) }
         val btnDelete = Button(this).apply { setText(R.string.btn_delete_user) }
+
+        linearLayout.addView(btnGenerate)
+        if (changeMode) {
+            linearLayout.addView(btnUndo)
+            linearLayout.addView(btnCommit)
+            feedbackLabel.setText(R.string.password_change_mode)
+        } else {
+            linearLayout.addView(btnChange)
+        }
         linearLayout.addView(btnDelete)
 
         val alertDialog = with(AlertDialog.Builder(this)) {
@@ -346,9 +519,15 @@ class AccountsActivity : AppCompatActivity() {
         }
 
         btnChange.setOnClickListener {
-            val pw = masterPassword.text.asCharArray
-            // TODO ChangeTask(pw, realm).execute()
-            alertDialog.dismiss()
+            ChangeTask(masterPassword.text.asCharArray, realm, alertDialog, feedbackLabel).execute()
+        }
+
+        btnUndo.setOnClickListener {
+            UndoTask(masterPassword.text.asCharArray, realm, alertDialog, feedbackLabel).execute()
+        }
+
+        btnCommit.setOnClickListener {
+            CommitTask(masterPassword.text.asCharArray, realm, alertDialog, feedbackLabel).execute()
         }
 
         btnDelete.setOnClickListener {
@@ -361,6 +540,8 @@ class AccountsActivity : AppCompatActivity() {
                 setNeutralButton(R.string.keep, null)
             }.show()
         }
+
+        return alertDialog to feedbackLabel
     }
 
     private fun updateUserList(hostname: String) {
@@ -369,6 +550,11 @@ class AccountsActivity : AppCompatActivity() {
 
     inner class UserProxy(val username: String?) {
         override fun toString(): String = username ?: getString(R.string.no_users_for_host)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putSerializable(USERS_BEING_CHANGED_KEY, usersBeingChanged)
     }
 }
 
