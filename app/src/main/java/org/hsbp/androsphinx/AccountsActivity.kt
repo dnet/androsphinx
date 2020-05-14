@@ -100,7 +100,7 @@ class AccountsActivity : AppCompatActivity() {
                             getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         val clip = ClipData.newPlainText("password", String(pw))
                         clipboard.setPrimaryClip(clip)
-                        Snackbar.make(fab, "Password has been copied to the clipboard", Snackbar.LENGTH_LONG).show()
+                        Snackbar.make(fab, R.string.password_copied_to_clipboard, Snackbar.LENGTH_LONG).show()
                         alertDialog.dismiss()
                     }
                 }
@@ -132,7 +132,7 @@ class AccountsActivity : AppCompatActivity() {
         override fun onPostExecute(result: Exception?) {
             when (result) {
                 null -> {
-                    Snackbar.make(fab, "User deleted successfully", Snackbar.LENGTH_LONG).show()
+                    Snackbar.make(fab, R.string.user_deleted, Snackbar.LENGTH_LONG).show()
                     alertDialog.dismiss()
                     updateUserList(realm.hostname)
                 }
@@ -179,7 +179,7 @@ class AccountsActivity : AppCompatActivity() {
                             getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         val clip = ClipData.newPlainText("password", String(pw))
                         clipboard.setPrimaryClip(clip)
-                        Snackbar.make(fab, "Password has been copied to the clipboard", Snackbar.LENGTH_LONG).show()
+                        Snackbar.make(fab, R.string.password_copied_to_clipboard, Snackbar.LENGTH_LONG).show()
                     }
                 }
                 is Protocol.ServerFailureException -> handleError(R.string.server_error_title)
@@ -347,10 +347,10 @@ class AccountsActivity : AppCompatActivity() {
             with(AlertDialog.Builder(this)) {
                 setTitle(R.string.confirm_delete_user_title)
                 setMessage(getString(R.string.confirm_delete_user_msg, realm.username, realm.hostname))
-                setPositiveButton("Delete") { _, _ ->
+                setPositiveButton(R.string.delete) { _, _ ->
                     DeleteTask(masterPassword.text.asCharArray, realm, alertDialog, feedbackLabel).execute()
                 }
-                setNeutralButton("Keep", null)
+                setNeutralButton(R.string.keep, null)
             }.show()
         }
     }
