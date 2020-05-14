@@ -31,6 +31,10 @@ class AccountsActivity : AppCompatActivity() {
 
         private var users: Set<String> = emptySet()
 
+        override fun onPreExecute() {
+            pullToRefresh.isRefreshing = true
+        }
+
         override fun doInBackground(vararg p0: Void?): Exception? {
             return try {
                 users = Protocol.list(hostname, cs)
@@ -41,6 +45,7 @@ class AccountsActivity : AppCompatActivity() {
         }
 
         override fun onPostExecute(result: Exception?) {
+            pullToRefresh.isRefreshing = false
             when (result) {
                 null -> {
                     val objects = if (users.isEmpty()) {
@@ -219,6 +224,10 @@ class AccountsActivity : AppCompatActivity() {
 
                 fab.setOnClickListener { view ->
                     addUser(hostname, view)
+                }
+
+                pullToRefresh.setOnRefreshListener {
+                    updateUserList(hostname)
                 }
             }
         }

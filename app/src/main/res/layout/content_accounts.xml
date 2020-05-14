@@ -9,10 +9,15 @@
     android:fillViewport="true"
     tools:showIn="@layout/activity_accounts">
 
-    <ListView
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/pullToRefresh"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:nestedScrollingEnabled="true"
-        android:id="@+id/userList" />
+        android:layout_height="wrap_content">
+        <ListView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:nestedScrollingEnabled="true"
+            android:id="@+id/userList" />
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
 </androidx.core.widget.NestedScrollView>
