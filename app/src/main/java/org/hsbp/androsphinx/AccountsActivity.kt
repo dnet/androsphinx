@@ -104,7 +104,7 @@ class AccountsActivity : AppCompatActivity() {
                         alertDialog.dismiss()
                     }
                 }
-                is Protocol.ServerFailureException -> handleError(R.string.server_error_title)
+                is Protocol.ServerFailureException -> handleError(R.string.server_error_password_title)
                 is SodiumException -> handleError(R.string.sodium_error_title)
                 is IOException -> handleError(R.string.io_error_title)
                 else -> handleError(R.string.unknown_error_title)
@@ -136,7 +136,7 @@ class AccountsActivity : AppCompatActivity() {
                     alertDialog.dismiss()
                     updateUserList(realm.hostname)
                 }
-                is Protocol.ServerFailureException -> handleError(R.string.server_error_title)
+                is Protocol.ServerFailureException -> handleError(R.string.server_error_password_title)
                 is SodiumException -> handleError(R.string.sodium_error_title)
                 is IOException -> handleError(R.string.io_error_title)
                 else -> handleError(R.string.unknown_error_title)
