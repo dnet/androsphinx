@@ -110,6 +110,37 @@ class AccountsActivity : AppCompatActivity() {
         }
     }
 
+    inner class DeleteTask(private val masterPassword: CharArray,
+                             private val realm: Protocol.Realm) : AsyncTask<Void, Void, Exception?>() {
+        override fun doInBackground(vararg p0: Void?): Exception? {
+            return try {
+                Protocol.delete(masterPassword, realm, cs)
+                null
+            } catch (e: Exception) {
+                e
+            }
+        }
+
+        override fun onPostExecute(result: Exception?) {
+            when (result) {
+                null -> {
+                    Snackbar.make(fab, "User deleted successfully", Snackbar.LENGTH_LONG).show()
+                    updateUserList(realm.hostname)
+                }
+                is Protocol.ServerFailureException -> handleError(R.string.server_error_title)
+                is SodiumException -> handleError(R.string.sodium_error_title)
+                is IOException -> handleError(R.string.io_error_title)
+                else -> handleError(R.string.unknown_error_title)
+            }
+        }
+
+        private fun handleError(message: Int) {
+            Snackbar.make(fab, message, Snackbar.LENGTH_LONG).setAction(R.string.retry) {
+                DeleteTask(masterPassword, realm).execute()
+            }.show()
+        }
+    }
+
     inner class CreateTask(private val masterPassword: CharArray, private val realm: Protocol.Realm,
                      private val charClasses: Set<CharacterClass>,
                      private val size: Int) : AsyncTask<Void, Void, Exception?>(), Protocol.PasswordCallback {
@@ -304,8 +335,7 @@ class AccountsActivity : AppCompatActivity() {
                 setTitle(R.string.confirm_delete_user_title)
                 setMessage(getString(R.string.confirm_delete_user_msg, realm.username, realm.hostname))
                 setPositiveButton("Delete") { _, _ ->
-                    val pw = masterPassword.text.asCharArray
-                    // TODO DeleteTask(pw, realm).execute()
+                    DeleteTask(masterPassword.text.asCharArray, realm).execute()
                     alertDialog.dismiss()
                 }
                 setNeutralButton("Keep", null)
