@@ -71,7 +71,9 @@ class AccountsActivity : AppCompatActivity() {
     }
 
     inner class GenerateTask(private val masterPassword: CharArray,
-                             private val realm: Protocol.Realm) : AsyncTask<Void, Void, Exception?>(), Protocol.PasswordCallback {
+                             private val realm: Protocol.Realm,
+                             private val alertDialog: AlertDialog,
+                             private val feedbackLabel: TextView) : AsyncTask<Void, Void, Exception?>(), Protocol.PasswordCallback {
         private var passwordReceived: CharArray? = null
 
         override fun passwordReceived(password: CharArray) {
@@ -99,6 +101,7 @@ class AccountsActivity : AppCompatActivity() {
                         val clip = ClipData.newPlainText("password", String(pw))
                         clipboard.setPrimaryClip(clip)
                         Snackbar.make(fab, "Password has been copied to the clipboard", Snackbar.LENGTH_LONG).show()
+                        alertDialog.dismiss()
                     }
                 }
                 is Protocol.ServerFailureException -> handleError(R.string.server_error_title)
@@ -109,14 +112,14 @@ class AccountsActivity : AppCompatActivity() {
         }
 
         private fun handleError(message: Int) {
-            Snackbar.make(fab, message, Snackbar.LENGTH_LONG).setAction(R.string.retry) {
-                GenerateTask(masterPassword, realm).execute()
-            }.show()
+            feedbackLabel.setText(message)
         }
     }
 
     inner class DeleteTask(private val masterPassword: CharArray,
-                             private val realm: Protocol.Realm) : AsyncTask<Void, Void, Exception?>() {
+                           private val realm: Protocol.Realm,
+                           private val alertDialog: AlertDialog,
+                           private val feedbackLabel: TextView) : AsyncTask<Void, Void, Exception?>() {
         override fun doInBackground(vararg p0: Void?): Exception? {
             return try {
                 Protocol.delete(masterPassword, realm, cs)
@@ -130,6 +133,7 @@ class AccountsActivity : AppCompatActivity() {
             when (result) {
                 null -> {
                     Snackbar.make(fab, "User deleted successfully", Snackbar.LENGTH_LONG).show()
+                    alertDialog.dismiss()
                     updateUserList(realm.hostname)
                 }
                 is Protocol.ServerFailureException -> handleError(R.string.server_error_title)
@@ -140,9 +144,7 @@ class AccountsActivity : AppCompatActivity() {
         }
 
         private fun handleError(message: Int) {
-            Snackbar.make(fab, message, Snackbar.LENGTH_LONG).setAction(R.string.retry) {
-                DeleteTask(masterPassword, realm).execute()
-            }.show()
+            feedbackLabel.setText(message)
         }
     }
 
@@ -315,6 +317,9 @@ class AccountsActivity : AppCompatActivity() {
         masterPassword.setHint(R.string.master_password)
         linearLayout.addView(masterPassword)
 
+        val feedbackLabel = TextView(this)
+        linearLayout.addView(feedbackLabel)
+
         val btnGenerate = Button(this).apply { setText(R.string.btn_generate_copy) }
         linearLayout.addView(btnGenerate)
         val btnChange = Button(this).apply { setText(R.string.btn_generate_change) }
@@ -329,8 +334,7 @@ class AccountsActivity : AppCompatActivity() {
         }.show()
 
         btnGenerate.setOnClickListener {
-            GenerateTask(masterPassword.text.asCharArray, realm).execute()
-            alertDialog.dismiss()
+            GenerateTask(masterPassword.text.asCharArray, realm, alertDialog, feedbackLabel).execute()
         }
 
         btnChange.setOnClickListener {
@@ -344,8 +348,7 @@ class AccountsActivity : AppCompatActivity() {
                 setTitle(R.string.confirm_delete_user_title)
                 setMessage(getString(R.string.confirm_delete_user_msg, realm.username, realm.hostname))
                 setPositiveButton("Delete") { _, _ ->
-                    DeleteTask(masterPassword.text.asCharArray, realm).execute()
-                    alertDialog.dismiss()
+                    DeleteTask(masterPassword.text.asCharArray, realm, alertDialog, feedbackLabel).execute()
                 }
                 setNeutralButton("Keep", null)
             }.show()
