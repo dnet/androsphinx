@@ -52,14 +52,14 @@ class SettingsFragment : PreferenceFragmentCompat() {
         ShareType.values().forEach { t ->
             val p = preferenceManager.findPreference<Preference>(t.key)!!
             p.setOnPreferenceClickListener {
-                showQR(t.serialize(context!!), p.title)
+                showQR(t.serialize(requireContext()), p.title)
                 true
             }
         }
     }
 
     private fun showQR(payload: ByteArray, title: CharSequence) {
-        val display = activity!!.windowManager.defaultDisplay
+        val display = requireActivity().windowManager.defaultDisplay
         val size = Point()
         display.getSize(size)
         val dimension = size.x.coerceAtMost(size.y) / 4 * 3
@@ -69,10 +69,10 @@ class SettingsFragment : PreferenceFragmentCompat() {
         val pixels = IntArray(w * h) { i -> if (result[i.rem(w), i / w]) BLACK else WHITE }
         val bm = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         bm.setPixels(pixels, 0, w, 0, 0, w, h)
-        with(AlertDialog.Builder(context!!)) {
+        with(AlertDialog.Builder(requireContext())) {
             setTitle(title)
             setView(ImageView(context).apply {
-                setImageDrawable(BitmapDrawable(activity!!.resources, bm))
+                setImageDrawable(BitmapDrawable(requireActivity().resources, bm))
             })
             setNeutralButton(android.R.string.ok, null)
             show()
@@ -103,7 +103,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
             }
 
             for ((filename, keyMaterial) in secrets) {
-                context!!.openFileOutput(filename, Context.MODE_PRIVATE).use {
+                requireContext().openFileOutput(filename, Context.MODE_PRIVATE).use {
                     it.write(keyMaterial.asBytes)
                 }
             }
