@@ -80,6 +80,10 @@ class AccountsActivity : AppCompatActivity() {
             passwordReceived = password
         }
 
+        override fun onPreExecute() {
+            feedbackLabel.setText(R.string.connecting_to_server)
+        }
+
         override fun doInBackground(vararg p0: Void?): Exception? {
             return try {
                 Protocol.get(masterPassword, realm, cs, this)
@@ -127,6 +131,10 @@ class AccountsActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 e
             }
+        }
+
+        override fun onPreExecute() {
+            feedbackLabel.setText(R.string.connecting_to_server)
         }
 
         override fun onPostExecute(result: Exception?) {
