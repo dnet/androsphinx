@@ -7,12 +7,12 @@ import kotlin.experimental.and
 import kotlin.experimental.or
 import kotlin.math.log
 
-enum class CharacterClass(private val bit: Byte, internal val range: Set<Char>) {
-    UPPER(bit = 1, range = CharRange('A', 'Z').toSet()),
-    LOWER(bit = 2, range = CharRange('a', 'z').toSet()),
+enum class CharacterClass(private val bit: Byte, internal val range: Set<Char>, val description: Int) {
+    UPPER(bit = 1, range = CharRange('A', 'Z').toSet(), description = R.string.character_class_upper),
+    LOWER(bit = 2, range = CharRange('a', 'z').toSet(), description = R.string.character_class_lower),
     SYMBOLS(bit = 4, range = CharRange(' ', '/') union CharRange(':', '@') union
-            CharRange('[', '`') union CharRange('{', '~')),
-    DIGITS(bit = 8, range = CharRange('0', '9').toSet());
+            CharRange('[', '`') union CharRange('{', '~'), description = R.string.character_class_symbols),
+    DIGITS(bit = 8, range = CharRange('0', '9').toSet(), description = R.string.character_class_digits);
 
     companion object {
         fun serialize(values: Set<CharacterClass>): Byte {

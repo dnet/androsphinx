@@ -403,7 +403,7 @@ class AccountsActivity : AppCompatActivity() {
         val ccWidgets =
             CharacterClass.values().asIterable().associateWithTo(EnumMap(CharacterClass::class.java)) { cc ->
                 val cb = CheckBox(this)
-                cb.text = cc.name.toLowerCase(Locale.ROOT)
+                cb.setText(cc.description)
                 cb.isChecked = true
                 linearLayout.addView(cb)
                 cb
