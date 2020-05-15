@@ -12,7 +12,7 @@
     <string name="share_qr_public_title">Share as public QR code</string>
     <string name="share_qr_public_summary">Display public server settings to be read by a friend with a camera to join this server</string>
     <string name="share_qr_private_title">Share as private QR code</string>
-    <string name="share_qr_private_summary">Display public server settings and private keys to be read by another device of yours with a camera to sync</string>
+    <string name="share_qr_private_summary">Display public server settings and private key to be read by another device of yours with a camera to sync</string>
     <string name="search_hint">Search by URL or hostname</string>
     <string name="title_activity_accounts">AccountsActivity</string>
     <string name="action_settings">Settings</string>
