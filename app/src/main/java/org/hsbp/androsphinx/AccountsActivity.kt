@@ -49,6 +49,7 @@ class AccountsActivity : AppCompatActivity() {
             when (result) {
                 null -> {
                     val objects = if (users.isEmpty()) {
+                        userList.announceForAccessibility(getString(R.string.no_users_for_host))
                         arrayOf(UserProxy(null))
                     } else {
                         users.map(::UserProxy).toTypedArray()
@@ -64,34 +65,42 @@ class AccountsActivity : AppCompatActivity() {
         }
 
         private fun handleError(message: Int) {
-            Snackbar.make(fab, message, Snackbar.LENGTH_LONG).setAction(R.string.retry) {
+            val string = getString(message)
+            Snackbar.make(fab, string, Snackbar.LENGTH_LONG).setAction(R.string.retry) {
                 UpdateUserListTask(hostname).execute()
             }.show()
+            fab.announceForAccessibility(string)
         }
     }
 
-    inner class GenerateTask(private val masterPassword: CharArray,
-                             private val realm: Protocol.Realm,
-                             private val alertDialog: AlertDialog,
-                             private val feedbackLabel: TextView) : AsyncTask<Void, Void, Exception?>(), Protocol.PasswordCallback {
+    abstract inner class UserTask(private val feedbackLabel: TextView) : AsyncTask<Void, Void, Exception?>(), Protocol.PasswordCallback {
         private var passwordReceived: CharArray? = null
 
         override fun passwordReceived(password: CharArray) {
             passwordReceived = password
         }
 
+        fun updateLabel(message: Int) {
+            val string = getString(message)
+            feedbackLabel.text = string
+            feedbackLabel.announceForAccessibility(string)
+        }
+
         override fun onPreExecute() {
-            feedbackLabel.setText(R.string.connecting_to_server)
+            updateLabel(R.string.connecting_to_server)
         }
 
         override fun doInBackground(vararg p0: Void?): Exception? {
             return try {
-                Protocol.get(masterPassword, realm, cs, this)
+                run()
                 null
             } catch (e: Exception) {
                 e
             }
         }
+
+        abstract fun run()
+        abstract fun handlePassword(pw: CharArray)
 
         override fun onPostExecute(result: Exception?) {
             when (result) {
@@ -100,9 +109,7 @@ class AccountsActivity : AppCompatActivity() {
                     if (pw == null) {
                         handleError(R.string.internal_error_title)
                     } else {
-                        copyPasswordToClipboard(pw)
-                        Snackbar.make(fab, R.string.password_copied_to_clipboard, Snackbar.LENGTH_LONG).show()
-                        alertDialog.dismiss()
+                        handlePassword(pw)
                     }
                 }
                 is Protocol.ServerFailureException -> handleError(R.string.server_error_password_title)
@@ -112,54 +119,55 @@ class AccountsActivity : AppCompatActivity() {
             }
         }
 
-        private fun handleError(message: Int) {
-            feedbackLabel.setText(message)
+        private fun handleError(message: Int) = updateLabel(message)
+
+        fun showSnackbar(message: Int) {
+            val msg = getString(message)
+            Snackbar.make(fab, msg, Snackbar.LENGTH_LONG).show()
+            fab.announceForAccessibility(msg)
+        }
+    }
+
+
+    inner class GenerateTask(private val masterPassword: CharArray,
+                             private val realm: Protocol.Realm,
+                             private val alertDialog: AlertDialog,
+                             feedbackLabel: TextView) : UserTask(feedbackLabel) {
+        override fun run() = Protocol.get(masterPassword, realm, cs, this)
+
+        override fun handlePassword(pw: CharArray) {
+            copyPasswordToClipboard(pw)
+            showSnackbar(R.string.password_copied_to_clipboard)
+            alertDialog.dismiss()
         }
     }
 
     inner class ChangeTask(private val masterPassword: CharArray,
                            private val realm: Protocol.Realm,
-                           private val alertDialog: AlertDialog,
-                           private val feedbackLabel: TextView) : AsyncTask<Void, Void, Exception?>(), Protocol.PasswordCallback {
-        private var passwordReceived: CharArray? = null
+                           feedbackLabel: TextView) : CopyUpdateTask(feedbackLabel, R.string.password_change_mode) {
 
-        override fun passwordReceived(password: CharArray) {
-            passwordReceived = password
-        }
+        override fun run() = Protocol.change(masterPassword, realm, cs, this)
+    }
 
-        override fun onPreExecute() {
-            feedbackLabel.setText(R.string.connecting_to_server)
-        }
+    inner class UndoTask(private val masterPassword: CharArray,
+                           private val realm: Protocol.Realm,
+                           feedbackLabel: TextView) : CopyUpdateTask(feedbackLabel, R.string.old_password_copied_to_clipboard) {
 
-        override fun doInBackground(vararg p0: Void?): Exception? {
-            return try {
-                Protocol.change(masterPassword, realm, cs, this)
-                null
-            } catch (e: Exception) {
-                e
-            }
-        }
+        override fun run() = Protocol.undo(masterPassword, realm, cs, this)
+    }
 
-        override fun onPostExecute(result: Exception?) {
-            when (result) {
-                null -> {
-                    val pw = passwordReceived
-                    if (pw == null) {
-                        handleError(R.string.internal_error_title)
-                    } else {
-                        copyPasswordToClipboard(pw)
-                        feedbackLabel.setText(R.string.password_change_mode)
-                    }
-                }
-                is Protocol.ServerFailureException -> handleError(R.string.server_error_password_title)
-                is SodiumException -> handleError(R.string.sodium_error_title)
-                is IOException -> handleError(R.string.io_error_title)
-                else -> handleError(R.string.unknown_error_title)
-            }
-        }
+    inner class CommitTask(private val masterPassword: CharArray,
+                           private val realm: Protocol.Realm,
+                           feedbackLabel: TextView) : CopyUpdateTask(feedbackLabel, R.string.new_password_copied_to_clipboard) {
 
-        private fun handleError(message: Int) {
-            feedbackLabel.setText(message)
+        override fun run() = Protocol.commit(masterPassword, realm, cs, this)
+    }
+
+    abstract inner class CopyUpdateTask(feedbackLabel: TextView,
+                                        private val successMessage: Int) : UserTask(feedbackLabel) {
+        override fun handlePassword(pw: CharArray) {
+            copyPasswordToClipboard(pw)
+            updateLabel(successMessage)
         }
     }
 
@@ -169,131 +177,19 @@ class AccountsActivity : AppCompatActivity() {
         clipboard.setPrimaryClip(clip)
     }
 
-    inner class UndoTask(private val masterPassword: CharArray,
-                           private val realm: Protocol.Realm,
-                           private val alertDialog: AlertDialog,
-                           private val feedbackLabel: TextView) : AsyncTask<Void, Void, Exception?>(), Protocol.PasswordCallback {
-        private var passwordReceived: CharArray? = null
-
-        override fun passwordReceived(password: CharArray) {
-            passwordReceived = password
-        }
-
-        override fun onPreExecute() {
-            feedbackLabel.setText(R.string.connecting_to_server)
-        }
-
-        override fun doInBackground(vararg p0: Void?): Exception? {
-            return try {
-                Protocol.undo(masterPassword, realm, cs, this)
-                null
-            } catch (e: Exception) {
-                e
-            }
-        }
-
-        override fun onPostExecute(result: Exception?) {
-            when (result) {
-                null -> {
-                    val pw = passwordReceived
-                    if (pw == null) {
-                        handleError(R.string.internal_error_title)
-                    } else {
-                        copyPasswordToClipboard(pw)
-                        feedbackLabel.setText(R.string.old_password_copied_to_clipboard)
-                    }
-                }
-                is Protocol.ServerFailureException -> handleError(R.string.server_error_password_title)
-                is SodiumException -> handleError(R.string.sodium_error_title)
-                is IOException -> handleError(R.string.io_error_title)
-                else -> handleError(R.string.unknown_error_title)
-            }
-        }
-
-        private fun handleError(message: Int) {
-            feedbackLabel.setText(message)
-        }
-    }
-
-    inner class CommitTask(private val masterPassword: CharArray,
-                           private val realm: Protocol.Realm,
-                           private val alertDialog: AlertDialog,
-                           private val feedbackLabel: TextView) : AsyncTask<Void, Void, Exception?>(), Protocol.PasswordCallback {
-        private var passwordReceived: CharArray? = null
-
-        override fun passwordReceived(password: CharArray) {
-            passwordReceived = password
-        }
-
-        override fun onPreExecute() {
-            feedbackLabel.setText(R.string.connecting_to_server)
-        }
-
-        override fun doInBackground(vararg p0: Void?): Exception? {
-            return try {
-                Protocol.commit(masterPassword, realm, cs, this)
-                null
-            } catch (e: Exception) {
-                e
-            }
-        }
-
-        override fun onPostExecute(result: Exception?) {
-            when (result) {
-                null -> {
-                    val pw = passwordReceived
-                    if (pw == null) {
-                        handleError(R.string.internal_error_title)
-                    } else {
-                        copyPasswordToClipboard(pw)
-                        feedbackLabel.setText(R.string.new_password_copied_to_clipboard)
-                    }
-                }
-                is Protocol.ServerFailureException -> handleError(R.string.server_error_password_title)
-                is SodiumException -> handleError(R.string.sodium_error_title)
-                is IOException -> handleError(R.string.io_error_title)
-                else -> handleError(R.string.unknown_error_title)
-            }
-        }
-
-        private fun handleError(message: Int) {
-            feedbackLabel.setText(message)
-        }
-    }
-
     inner class DeleteTask(private val masterPassword: CharArray,
                            private val realm: Protocol.Realm,
                            private val alertDialog: AlertDialog,
-                           private val feedbackLabel: TextView) : AsyncTask<Void, Void, Exception?>() {
-        override fun doInBackground(vararg p0: Void?): Exception? {
-            return try {
-                Protocol.delete(masterPassword, realm, cs)
-                null
-            } catch (e: Exception) {
-                e
-            }
+                           feedbackLabel: TextView) : UserTask(feedbackLabel) {
+
+        override fun run() {
+            Protocol.delete(masterPassword, realm, cs)
         }
 
-        override fun onPreExecute() {
-            feedbackLabel.setText(R.string.connecting_to_server)
-        }
-
-        override fun onPostExecute(result: Exception?) {
-            when (result) {
-                null -> {
-                    Snackbar.make(fab, R.string.user_deleted, Snackbar.LENGTH_LONG).show()
-                    alertDialog.dismiss()
-                    updateUserList(realm.hostname)
-                }
-                is Protocol.ServerFailureException -> handleError(R.string.server_error_password_title)
-                is SodiumException -> handleError(R.string.sodium_error_title)
-                is IOException -> handleError(R.string.io_error_title)
-                else -> handleError(R.string.unknown_error_title)
-            }
-        }
-
-        private fun handleError(message: Int) {
-            feedbackLabel.setText(message)
+        override fun handlePassword(pw: CharArray) {
+            showSnackbar(R.string.user_deleted)
+            alertDialog.dismiss()
+            updateUserList(realm.hostname)
         }
     }
 
@@ -490,15 +386,15 @@ class AccountsActivity : AppCompatActivity() {
         }
 
         btnChange.setOnClickListener {
-            ChangeTask(masterPassword.text.asCharArray, realm, alertDialog, feedbackLabel).execute()
+            ChangeTask(masterPassword.text.asCharArray, realm, feedbackLabel).execute()
         }
 
         btnUndo.setOnClickListener {
-            UndoTask(masterPassword.text.asCharArray, realm, alertDialog, feedbackLabel).execute()
+            UndoTask(masterPassword.text.asCharArray, realm, feedbackLabel).execute()
         }
 
         btnCommit.setOnClickListener {
-            CommitTask(masterPassword.text.asCharArray, realm, alertDialog, feedbackLabel).execute()
+            CommitTask(masterPassword.text.asCharArray, realm, feedbackLabel).execute()
         }
 
         btnDelete.setOnClickListener {

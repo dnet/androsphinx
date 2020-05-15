@@ -50,7 +50,7 @@
     <string name="close">Close</string>
     <string name="user_deleted">User deleted successfully</string>
     <string name="password_change_mode">A new password was generated for this user and copied to the clipboard; tap [Save new password] below to make this permanent after you\'ve changed the password on the site</string>
-    <string name="connecting_to_server">Connecting to SPHINX server…</string>
+    <string name="connecting_to_server">Connecting to SPHINX server</string>
     <string name="character_class_upper">uppercase letters (A–Z)</string>
     <string name="character_class_lower">lowercase letters (a–z)</string>
     <string name="character_class_symbols">symbols (/, @, ~, …)</string>
