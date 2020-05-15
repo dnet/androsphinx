@@ -42,12 +42,13 @@
     <string name="confirm_delete_user_title">Confirm deletion</string>
     <string name="confirm_delete_user_msg">Are you sure you want to delete %1$s from %2$s This cannot be undone.</string>
     <string name="password_copied_to_clipboard">Password has been copied to the clipboard</string>
-    <string name="new_password_copied_to_clipboard">New password copied to the clipboard</string>
-    <string name="old_password_copied_to_clipboard">Old password restored and copied to the clipboard</string>
+    <string name="old_password_copied_to_clipboard">The old password was restored and copied to the clipboard; tap [Save new password] below to replace it with the new password again, if you change your mind</string>
+    <string name="new_password_copied_to_clipboard">The new password was saved and copied to the clipboard; tap [Undo password change] below to replace it with the old password again, if you change your mind</string>
     <string name="delete">Delete</string>
     <string name="keep">Keep</string>
     <string name="undo">Undo</string>
+    <string name="close">Close</string>
     <string name="user_deleted">User deleted successfully</string>
-    <string name="password_change_mode">A new password was generated for this user; use the two options below to save the new password or undo the change and keep the old one</string>
+    <string name="password_change_mode">A new password was generated for this user and copied to the clipboard; tap [Save new password] below to make this permanent after you\'ve changed the password on the site</string>
     <string name="connecting_to_server">Connecting to SPHINX server...</string>
 </resources>

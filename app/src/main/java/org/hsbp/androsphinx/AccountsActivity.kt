@@ -23,12 +23,9 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 
-private const val USERS_BEING_CHANGED_KEY = "org.hsbp.androsphinx.AccountsActivity.USERS_BEING_CHANGED_KEY"
-
 class AccountsActivity : AppCompatActivity() {
 
     private val cs = AndroidCredentialStore(this)
-    private var usersBeingChanged = HashSet<Protocol.Realm>()
 
     inner class UpdateUserListTask(private val hostname: String) : AsyncTask<Void, Void, Exception?>() {
 
@@ -151,12 +148,7 @@ class AccountsActivity : AppCompatActivity() {
                         handleError(R.string.internal_error_title)
                     } else {
                         copyPasswordToClipboard(pw)
-                        Snackbar.make(fab, R.string.new_password_copied_to_clipboard, Snackbar.LENGTH_LONG).setAction(R.string.undo) {
-                            val (newAlertDialog, newFeedbackLabel) = showUser(realm, masterPassword)
-                            UndoTask(masterPassword, realm, newAlertDialog, newFeedbackLabel).execute()
-                        }.show()
-                        alertDialog.dismiss()
-                        usersBeingChanged.add(realm)
+                        feedbackLabel.setText(R.string.password_change_mode)
                     }
                 }
                 is Protocol.ServerFailureException -> handleError(R.string.server_error_password_title)
@@ -208,9 +200,7 @@ class AccountsActivity : AppCompatActivity() {
                         handleError(R.string.internal_error_title)
                     } else {
                         copyPasswordToClipboard(pw)
-                        Snackbar.make(fab, R.string.old_password_copied_to_clipboard, Snackbar.LENGTH_LONG).show()
-                        alertDialog.dismiss()
-                        usersBeingChanged.remove(realm)
+                        feedbackLabel.setText(R.string.old_password_copied_to_clipboard)
                     }
                 }
                 is Protocol.ServerFailureException -> handleError(R.string.server_error_password_title)
@@ -256,9 +246,7 @@ class AccountsActivity : AppCompatActivity() {
                         handleError(R.string.internal_error_title)
                     } else {
                         copyPasswordToClipboard(pw)
-                        Snackbar.make(fab, R.string.new_password_copied_to_clipboard, Snackbar.LENGTH_LONG).show()
-                        alertDialog.dismiss()
-                        usersBeingChanged.remove(realm)
+                        feedbackLabel.setText(R.string.new_password_copied_to_clipboard)
                     }
                 }
                 is Protocol.ServerFailureException -> handleError(R.string.server_error_password_title)
@@ -358,9 +346,6 @@ class AccountsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_accounts)
         setSupportActionBar(toolbar)
-
-        val ubc = savedInstanceState?.getSerializable(USERS_BEING_CHANGED_KEY)
-        if (ubc != null) usersBeingChanged = ubc as HashSet<Protocol.Realm>
 
         if (Intent.ACTION_SEARCH == intent.action) {
             intent.getStringExtra(SearchManager.QUERY)?.also { query ->
@@ -469,18 +454,17 @@ class AccountsActivity : AppCompatActivity() {
         updateEnabled()
     }
 
-    private fun showUser(realm: Protocol.Realm, masterPasswordInit: CharArray? = null): Pair<AlertDialog, TextView> {
-        val changeMode = realm in usersBeingChanged
+    private fun showUser(realm: Protocol.Realm, feedbackText: Int? = null) {
         val linearLayout = LinearLayout(this)
         linearLayout.orientation = LinearLayout.VERTICAL
 
         val masterPassword = EditText(this)
-        if (masterPasswordInit != null) masterPassword.setText(masterPasswordInit, 0, masterPasswordInit.size)
         masterPassword.inputType = InputType.TYPE_TEXT_VARIATION_PASSWORD or InputType.TYPE_CLASS_TEXT
         masterPassword.setHint(R.string.master_password)
         linearLayout.addView(masterPassword)
 
         val feedbackLabel = TextView(this)
+        if (feedbackText != null) feedbackLabel.setText(feedbackText)
         linearLayout.addView(feedbackLabel)
 
         val btnGenerate = Button(this).apply { setText(R.string.btn_generate_copy) }
@@ -490,19 +474,15 @@ class AccountsActivity : AppCompatActivity() {
         val btnDelete = Button(this).apply { setText(R.string.btn_delete_user) }
 
         linearLayout.addView(btnGenerate)
-        if (changeMode) {
-            linearLayout.addView(btnUndo)
-            linearLayout.addView(btnCommit)
-            feedbackLabel.setText(R.string.password_change_mode)
-        } else {
-            linearLayout.addView(btnChange)
-        }
+        linearLayout.addView(btnChange)
+        linearLayout.addView(btnCommit)
+        linearLayout.addView(btnUndo)
         linearLayout.addView(btnDelete)
 
         val alertDialog = with(AlertDialog.Builder(this)) {
             setTitle(realm.username)
             setView(linearLayout)
-            setNeutralButton(android.R.string.cancel, null)
+            setNeutralButton(R.string.close, null)
         }.show()
 
         btnGenerate.setOnClickListener {
@@ -531,8 +511,6 @@ class AccountsActivity : AppCompatActivity() {
                 setNeutralButton(R.string.keep, null)
             }.show()
         }
-
-        return alertDialog to feedbackLabel
     }
 
     private fun updateUserList(hostname: String) {
@@ -541,11 +519,6 @@ class AccountsActivity : AppCompatActivity() {
 
     inner class UserProxy(val username: String?) {
         override fun toString(): String = username ?: getString(R.string.no_users_for_host)
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        outState.putSerializable(USERS_BEING_CHANGED_KEY, usersBeingChanged)
     }
 }
 
