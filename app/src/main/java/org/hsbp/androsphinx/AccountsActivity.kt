@@ -103,10 +103,7 @@ class AccountsActivity : AppCompatActivity() {
                     if (pw == null) {
                         handleError(R.string.internal_error_title)
                     } else {
-                        val clipboard =
-                            getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clip = ClipData.newPlainText("password", String(pw))
-                        clipboard.setPrimaryClip(clip)
+                        copyPasswordToClipboard(pw)
                         Snackbar.make(fab, R.string.password_copied_to_clipboard, Snackbar.LENGTH_LONG).show()
                         alertDialog.dismiss()
                     }
@@ -153,10 +150,7 @@ class AccountsActivity : AppCompatActivity() {
                     if (pw == null) {
                         handleError(R.string.internal_error_title)
                     } else {
-                        val clipboard =
-                            getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clip = ClipData.newPlainText("password", String(pw))
-                        clipboard.setPrimaryClip(clip)
+                        copyPasswordToClipboard(pw)
                         Snackbar.make(fab, R.string.new_password_copied_to_clipboard, Snackbar.LENGTH_LONG).setAction(R.string.undo) {
                             val (newAlertDialog, newFeedbackLabel) = showUser(realm, masterPassword)
                             UndoTask(masterPassword, realm, newAlertDialog, newFeedbackLabel).execute()
@@ -175,6 +169,12 @@ class AccountsActivity : AppCompatActivity() {
         private fun handleError(message: Int) {
             feedbackLabel.setText(message)
         }
+    }
+
+    private fun copyPasswordToClipboard(pw: CharArray) {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("password", String(pw))
+        clipboard.setPrimaryClip(clip)
     }
 
     inner class UndoTask(private val masterPassword: CharArray,
@@ -207,10 +207,7 @@ class AccountsActivity : AppCompatActivity() {
                     if (pw == null) {
                         handleError(R.string.internal_error_title)
                     } else {
-                        val clipboard =
-                            getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clip = ClipData.newPlainText("password", String(pw))
-                        clipboard.setPrimaryClip(clip)
+                        copyPasswordToClipboard(pw)
                         Snackbar.make(fab, R.string.old_password_copied_to_clipboard, Snackbar.LENGTH_LONG).show()
                         alertDialog.dismiss()
                         usersBeingChanged.remove(realm)
@@ -258,10 +255,7 @@ class AccountsActivity : AppCompatActivity() {
                     if (pw == null) {
                         handleError(R.string.internal_error_title)
                     } else {
-                        val clipboard =
-                            getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clip = ClipData.newPlainText("password", String(pw))
-                        clipboard.setPrimaryClip(clip)
+                        copyPasswordToClipboard(pw)
                         Snackbar.make(fab, R.string.new_password_copied_to_clipboard, Snackbar.LENGTH_LONG).show()
                         alertDialog.dismiss()
                         usersBeingChanged.remove(realm)
@@ -342,10 +336,7 @@ class AccountsActivity : AppCompatActivity() {
                         handleError(R.string.internal_error_title)
                     } else {
                         updateUserList(realm.hostname)
-                        val clipboard =
-                            getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clip = ClipData.newPlainText("password", String(pw))
-                        clipboard.setPrimaryClip(clip)
+                        copyPasswordToClipboard(pw)
                         Snackbar.make(fab, R.string.password_copied_to_clipboard, Snackbar.LENGTH_LONG).show()
                     }
                 }
