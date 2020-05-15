@@ -20,11 +20,6 @@
         <SwitchPreference
             android:key="use_tls"
             android:title="@string/preference_use_tls" />
-        <EditTextPreference
-            android:key="server_pk"
-            android:selectAllOnFocus="true"
-            android:singleLine="true"
-            android:title="@string/preference_server_pk" />
         <Preference
             android:key="scan_qr"
             android:title="@string/scan_qr_title"
