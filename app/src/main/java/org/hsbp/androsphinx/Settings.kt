@@ -88,10 +88,10 @@ class SettingsFragment : PreferenceFragmentCompat() {
 
         try {
             val formatFlags = info.get().toInt()
-            val secrets = if (formatFlags and QR_FLAGS_HAS_KEY == QR_FLAGS_HAS_KEY) {
-                listOf(FILE_NAME_KEY to MasterKey.fromByteBuffer(info))
+            val masterKey = if (formatFlags and QR_FLAGS_HAS_KEY == QR_FLAGS_HAS_KEY) {
+                MasterKey.fromByteBuffer(info)
             } else {
-                emptyList()
+                null
             }
             val port = info.getShort()
             val host = info.getByteArray(info.remaining()).decodeToString()
@@ -102,10 +102,8 @@ class SettingsFragment : PreferenceFragmentCompat() {
                 findPreference<SwitchPreference>(SHARED_PREFERENCES_KEY_USE_TLS)!!.isChecked = (formatFlags and QR_FLAGS_USE_TLS == QR_FLAGS_USE_TLS)
             }
 
-            for ((filename, keyMaterial) in secrets) {
-                requireContext().openFileOutput(filename, Context.MODE_PRIVATE).use {
-                    it.write(keyMaterial.asBytes)
-                }
+            if (masterKey != null) {
+                AndroidCredentialStore(requireContext()).writeMasterKey(masterKey)
             }
 
             Toast.makeText(context, R.string.scan_qr_done, Toast.LENGTH_LONG).show()
