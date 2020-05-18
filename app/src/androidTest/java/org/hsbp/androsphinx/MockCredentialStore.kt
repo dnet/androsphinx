@@ -12,9 +12,6 @@ class MockCredentialStore : Protocol.CredentialStore {
     override val port: Int
         get() = 2355
 
-    override val useTls: Boolean
-        get() = true
-
     override val key: MasterKey
         get() = MasterKey.fromByteArray(Base64.decode(MOCK_KEY, Base64.DEFAULT))
 }

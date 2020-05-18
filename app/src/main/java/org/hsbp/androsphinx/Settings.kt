@@ -20,11 +20,9 @@ import android.graphics.Point
 import android.graphics.drawable.BitmapDrawable
 import android.widget.ImageView
 import androidx.appcompat.app.AlertDialog
-import androidx.preference.SwitchPreference
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import java.util.*
-import kotlin.experimental.or
 
 class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,7 +36,6 @@ class SettingsActivity : AppCompatActivity() {
 }
 
 const val QR_FLAGS_HAS_KEY: Int = 1
-const val QR_FLAGS_USE_TLS: Int = 2
 const val BLACK: Int = 0xFF000000.toInt()
 const val WHITE: Int = 0xFFFFFFFF.toInt()
 
@@ -99,7 +96,6 @@ class SettingsFragment : PreferenceFragmentCompat() {
             with(preferenceManager) {
                 findPreference<EditTextPreference>(SHARED_PREFERENCES_KEY_HOST)!!.text = host
                 findPreference<IntEditTextPreference>(SHARED_PREFERENCES_KEY_PORT)!!.text = port.toString()
-                findPreference<SwitchPreference>(SHARED_PREFERENCES_KEY_USE_TLS)!!.isChecked = (formatFlags and QR_FLAGS_USE_TLS == QR_FLAGS_USE_TLS)
             }
 
             if (masterKey != null) {
@@ -138,7 +134,7 @@ enum class ShareType(private val code: Byte) {
         val info = ByteBuffer.allocate(1 + 2 + hostBytes.size + privateMaterialSize)
 
         with(info) {
-            put(code or (if (cs.useTls) QR_FLAGS_USE_TLS.toByte() else 0))
+            put(code)
             providePrivateMaterial(info, cs)
             putShort(cs.port.toShort())
             put(hostBytes)

@@ -82,7 +82,6 @@ class Protocol {
         val key: MasterKey
         val host: String
         val port: Int
-        val useTls: Boolean
     }
 
     interface PasswordCallback {
@@ -206,7 +205,6 @@ fun Protocol.CredentialStore.auth(socket: Socket, hostId: ByteArray, rwd: ByteAr
     socket.getOutputStream().write(getSignKey(hostId, rwd).sign(nonce))
 }
 
-fun Protocol.CredentialStore.createSocket(): Socket =
-    if (useTls) SSLSocketFactory.getDefault().createSocket(host, port) else Socket(host, port)
+private fun Protocol.CredentialStore.createSocket(): Socket = SSLSocketFactory.getDefault().createSocket(host, port)
 
 private fun ByteArray.equalsString(other: String): Boolean = contentEquals(other.toByteArray())

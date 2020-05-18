@@ -13,7 +13,6 @@ private val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
 
 const val SHARED_PREFERENCES_KEY_HOST = "host"
 const val SHARED_PREFERENCES_KEY_PORT = "port"
-const val SHARED_PREFERENCES_KEY_USE_TLS = "use_tls"
 
 class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStore {
     val isSetUpForCommunication: Boolean
@@ -45,9 +44,6 @@ class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStor
 
     override val port: Int
         get() = sharedPreferences.getInt(SHARED_PREFERENCES_KEY_PORT, 0)
-
-    override val useTls: Boolean
-        get() = sharedPreferences.getBoolean(SHARED_PREFERENCES_KEY_USE_TLS, true)
 
     private val sharedPreferences: SharedPreferences
         get() = PreferenceManager.getDefaultSharedPreferences(ctx)
