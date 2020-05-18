@@ -1,8 +1,10 @@
 package org.hsbp.androsphinx
 
 import android.annotation.SuppressLint
+import android.annotation.TargetApi
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.text.InputType
 import android.util.AttributeSet
@@ -18,8 +20,13 @@ import java.nio.ByteOrder
 import android.graphics.Bitmap
 import android.graphics.Point
 import android.graphics.drawable.BitmapDrawable
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import android.view.autofill.AutofillManager
 import android.widget.ImageView
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.getSystemService
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import java.util.*
@@ -39,6 +46,8 @@ const val QR_FLAGS_HAS_KEY: Int = 1
 const val BLACK: Int = 0xFF000000.toInt()
 const val WHITE: Int = 0xFFFFFFFF.toInt()
 
+const val REQUEST_SET_AUTO_FILL_SERVICE: Int = 1
+
 class SettingsFragment : PreferenceFragmentCompat() {
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.preferences, rootKey)
@@ -52,6 +61,48 @@ class SettingsFragment : PreferenceFragmentCompat() {
                 showQR(t.serialize(requireContext()), p.title)
                 true
             }
+        }
+        updateAutoFillStatus()
+    }
+
+    @TargetApi(26)
+    private fun updateAutoFillStatus() {
+        val pref = preferenceManager.findPreference<Preference>("auto_fill_status")!!
+        val ctx = requireContext()
+        if (Build.VERSION.SDK_INT >= 26 && ctx.packageManager.hasSystemFeature(PackageManager.FEATURE_AUTOFILL)) {
+            val afm = ctx.getSystemService<AutofillManager>()
+            if (afm == null) {
+                pref.isEnabled = false
+                pref.setTitle(R.string.autofill_system_service_null_title)
+                pref.setSummary(R.string.autofill_system_service_null_summary)
+            } else {
+                if (afm.isAutofillSupported) {
+                    if (afm.hasEnabledAutofillServices()) {
+                        pref.isEnabled = false
+                        pref.setTitle(R.string.autofill_provider_already_set)
+                    } else {
+                        pref.isEnabled = true
+                        pref.setTitle(R.string.request_autofill_set_title)
+                        pref.setSummary(R.string.request_autofill_set_summary)
+                        pref.setOnPreferenceClickListener {
+                            startActivityForResult(
+                                Intent(Settings.ACTION_REQUEST_SET_AUTOFILL_SERVICE).setData(
+                                    Uri.parse("package:${ctx.applicationContext.packageName}")
+                                ), REQUEST_SET_AUTO_FILL_SERVICE
+                            )
+                            true
+                        }
+                    }
+                } else {
+                    pref.isEnabled = false
+                    pref.setTitle(R.string.autofill_not_supported_title)
+                    pref.setSummary(R.string.autofill_not_supported_summary)
+                }
+            }
+        } else {
+            pref.isEnabled = false
+            pref.setTitle(R.string.autofill_no_os_feature_title)
+            pref.setSummary(R.string.autofill_no_os_feature_summary)
         }
     }
 
@@ -109,7 +160,8 @@ class SettingsFragment : PreferenceFragmentCompat() {
                 e.printStackTrace()
                 Toast.makeText(context, R.string.scan_qr_error, Toast.LENGTH_LONG).show()
             }
-
+        } else if (requestCode == REQUEST_SET_AUTO_FILL_SERVICE) {
+            updateAutoFillStatus()
         }
     }
 }

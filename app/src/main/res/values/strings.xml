@@ -53,4 +53,14 @@
     <string name="character_class_lower">lowercase letters (a–z)</string>
     <string name="character_class_symbols">symbols (/, @, ~, …)</string>
     <string name="character_class_digits">digits (0–9)</string>
+    <string name="preference_category_autofill">AutoFill</string>
+    <string name="autofill_system_service_null_title">Cannot get AutoFill system service</string>
+    <string name="autofill_system_service_null_summary">Please try again and report this error if this persists</string>
+    <string name="autofill_provider_already_set">AndroSphinx is already set as your AutoFill provider</string>
+    <string name="request_autofill_set_title">Set AndroSphinx to provide AutoFill services</string>
+    <string name="request_autofill_set_summary">Tap here to open the relevant setting</string>
+    <string name="autofill_not_supported_title">Your device doesn\'t support AutoFill</string>
+    <string name="autofill_not_supported_summary">This could be because of the manufacturer or your employer\'s decision</string>
+    <string name="autofill_no_os_feature_title">Your OS doesn\'t support AutoFill</string>
+    <string name="autofill_no_os_feature_summary">Try upgrading to a newer OS version</string>
 </resources>

@@ -30,4 +30,10 @@
             android:title="@string/share_qr_private_title"
             android:summary="@string/share_qr_private_summary" />
     </PreferenceCategory>
+    <PreferenceCategory
+        android:title="@string/preference_category_autofill">
+
+        <Preference
+            android:key="auto_fill_status"/>
+    </PreferenceCategory>
 </PreferenceScreen>
