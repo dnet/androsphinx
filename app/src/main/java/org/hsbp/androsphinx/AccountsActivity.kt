@@ -414,7 +414,9 @@ class AccountsActivity : AppCompatActivity() {
     }
 
     inner class UserProxy(val username: String?) {
-        override fun toString(): String = username ?: getString(R.string.no_users_for_host)
+        override fun toString(): String =
+            if (username == null) getString(R.string.no_users_for_host)
+            else "\uD83D\uDC64  $username"
     }
 }
 
