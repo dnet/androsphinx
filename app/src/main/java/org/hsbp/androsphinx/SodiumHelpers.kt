@@ -25,7 +25,7 @@ fun genericHash(message: ByteArray, salt: ByteArray): ByteArray {
     return result
 }
 
-inline class MasterKey(private val salt: ByteArray) {
+inline class MasterKey(private val bytes: ByteArray) {
     companion object {
         fun generate(): MasterKey = MasterKey(randomBytes(MASTER_KEY_BYTES))
 
@@ -36,7 +36,7 @@ inline class MasterKey(private val salt: ByteArray) {
 
         fun fromByteBuffer(buffer: ByteBuffer): MasterKey {
             val s = MasterKey(ByteArray(MASTER_KEY_BYTES))
-            buffer.get(s.salt)
+            buffer.get(s.bytes)
             return s
         }
     }
@@ -47,7 +47,7 @@ inline class MasterKey(private val salt: ByteArray) {
         context.foldHash(*(listOf(asBytes) + messages.toList()).toTypedArray())
 
     val asBytes: ByteArray
-        get() = salt
+        get() = bytes
 }
 
 inline class Ed25519PrivateKey(private val key: ByteArray) {
