@@ -379,7 +379,8 @@ class AccountsActivity : AppCompatActivity() {
             setTitle(realm.username)
             setView(linearLayout)
             setNeutralButton(R.string.close, null)
-        }.show()
+            show()
+        }
 
         btnGenerate.setOnClickListener {
             GenerateTask(masterPassword.text.asCharArray, realm, alertDialog, feedbackLabel).execute()
@@ -405,7 +406,8 @@ class AccountsActivity : AppCompatActivity() {
                     DeleteTask(masterPassword.text.asCharArray, realm, alertDialog, feedbackLabel).execute()
                 }
                 setNeutralButton(R.string.keep, null)
-            }.show()
+                show()
+            }
         }
     }
 
