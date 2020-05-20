@@ -184,7 +184,7 @@ enum class ShareType(private val code: Byte) {
     @Suppress("UNUSED") PUBLIC(code = 0),
     @Suppress("UNUSED") PRIVATE(code = QR_FLAGS_HAS_KEY.toByte()) {
         override val privateMaterialSize: Int
-            get() = Sodium.crypto_sign_secretkeybytes()
+            get() = MASTER_KEY_BYTES
 
         override fun providePrivateMaterial(target: ByteBuffer, cs: Protocol.CredentialStore) {
             target.put(cs.key.asBytes)
