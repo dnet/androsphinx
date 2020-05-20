@@ -28,10 +28,14 @@ class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStor
         }
 
     fun writeMasterKey(newKey: MasterKey) {
+        keyFile.delete()
         encryptedKeyFile.openFileOutput().use {
             it.write(newKey.asBytes)
         }
     }
+
+    val keyFileExists: Boolean
+        get() = keyFile.exists()
 
     private val encryptedKeyFile: EncryptedFile
         get() = EncryptedFile.Builder(keyFile, ctx, masterKeyAlias,

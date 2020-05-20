@@ -152,7 +152,21 @@ class SettingsFragment : PreferenceFragmentCompat() {
                 }
 
                 if (masterKey != null) {
-                    AndroidCredentialStore(requireContext()).writeMasterKey(masterKey)
+                    val ctx = requireContext()
+                    val cs = AndroidCredentialStore(ctx)
+                    if (cs.keyFileExists && !cs.key.contentEquals(masterKey)) {
+                        with(AlertDialog.Builder(ctx)) {
+                            setTitle(R.string.master_key_overwrite_title)
+                            setMessage(R.string.master_key_overwrite_msg)
+                            setNegativeButton(R.string.keep, null)
+                            setPositiveButton(R.string.overwrite) { _, _ ->
+                                cs.writeMasterKey(masterKey)
+                            }
+                            show()
+                        }
+                    } else {
+                        cs.writeMasterKey(masterKey)
+                    }
                 }
 
                 Toast.makeText(context, R.string.scan_qr_done, Toast.LENGTH_LONG).show()
