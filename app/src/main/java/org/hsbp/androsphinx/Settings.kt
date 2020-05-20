@@ -122,7 +122,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
             setView(ImageView(context).apply {
                 setImageDrawable(BitmapDrawable(requireActivity().resources, bm))
             })
-            setNeutralButton(android.R.string.ok, null)
+            setNeutralButton(R.string.close, null)
             show()
         }
     }
