@@ -20,7 +20,7 @@ class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStor
 
     override val key: MasterKey
         get() = try {
-            keyFile.openFileInput().use {
+            encryptedKeyFile.openFileInput().use {
                 MasterKey.fromByteArray(it.readBytes())
             }
         } catch (e: FileNotFoundException) {
@@ -28,16 +28,18 @@ class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStor
         }
 
     fun writeMasterKey(newKey: MasterKey) {
-        keyFile.openFileOutput().use {
+        encryptedKeyFile.openFileOutput().use {
             it.write(newKey.asBytes)
         }
     }
 
-    private val keyFile: EncryptedFile
-        get() = EncryptedFile.Builder(
-            File(ctx.filesDir, FILE_NAME_KEY), ctx, masterKeyAlias,
+    private val encryptedKeyFile: EncryptedFile
+        get() = EncryptedFile.Builder(keyFile, ctx, masterKeyAlias,
             EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
         ).build()
+
+    private val keyFile: File
+        get() = File(ctx.filesDir, FILE_NAME_KEY)
 
     override val host: String
         get() = sharedPreferences.getString(SHARED_PREFERENCES_KEY_HOST, "")!!
