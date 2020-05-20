@@ -87,7 +87,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
                         pref.setOnPreferenceClickListener {
                             startActivityForResult(
                                 Intent(Settings.ACTION_REQUEST_SET_AUTOFILL_SERVICE).setData(
-                                    Uri.parse("package:${ctx.applicationContext.packageName}")
+                                    Uri.parse("package:${ctx.packageName}")
                                 ), REQUEST_SET_AUTO_FILL_SERVICE
                             )
                             true
