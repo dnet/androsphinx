@@ -10,7 +10,7 @@ class SphinxAutofillService : AutofillService() {
         // TODO
     }
 
-    override fun onSaveRequest(p0: SaveRequest, p1: SaveCallback) {
-        // TODO
+    override fun onSaveRequest(_request: SaveRequest, callback: SaveCallback) {
+        callback.onFailure(getString(R.string.on_save_request_message))
     }
 }
