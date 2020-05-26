@@ -1,5 +1,7 @@
 package org.hsbp.androsphinx
 
+import android.annotation.TargetApi
+import android.app.Activity
 import android.app.SearchManager
 import android.content.Intent
 import android.os.AsyncTask
@@ -22,10 +24,20 @@ import java.util.*
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.view.autofill.AutofillManager.EXTRA_ASSIST_STRUCTURE
+import android.app.assist.AssistStructure
+import android.service.autofill.Dataset
+import android.service.autofill.FillResponse
+import android.view.autofill.AutofillManager
+import android.view.autofill.AutofillValue
+
+@Suppress("SpellCheckingInspection")
+const val EXTRA_ACCOUNTS_AUTOFILL = "org.hsbp.androsphinx.AccountsActivity.EXTRA_ACCOUNTS_AUTOFILL"
 
 class AccountsActivity : AppCompatActivity() {
 
     private val cs = AndroidCredentialStore(this)
+    private var autoFill = false
 
     inner class UpdateUserListTask(private val hostname: String) : AsyncTask<Void, Void, Exception?>() {
 
@@ -128,11 +140,35 @@ class AccountsActivity : AppCompatActivity() {
         }
     }
 
+    @TargetApi(26)
+    inner class AutoFillTask(masterPassword: CharArray,
+                             private val realm: Protocol.Realm,
+                             private val alertDialog: AlertDialog,
+                             feedbackLabel: TextView) : GenerateTask(masterPassword, realm, alertDialog, feedbackLabel) {
+        override fun handlePassword(pw: CharArray) {
+            val structure: AssistStructure = intent.getParcelableExtra(EXTRA_ASSIST_STRUCTURE)!!
+            val result = SphinxAutofillService.ParseResult()
+            SphinxAutofillService.parse(structure.getWindowNodeAt(0).rootViewNode, result)
+            val remoteView =
+                RemoteViews(packageName, android.R.layout.simple_list_item_1).apply {
+                    setTextViewText(android.R.id.text1, "AutoFill ${realm.username} using SPHINX") // TODO string resource
+                }
+            val b = Dataset.Builder(remoteView)
+            result.usernames.filterNotNull().forEach { b.setValue(it, AutofillValue.forText(realm.username)) }
+            result.passwords.filterNotNull().forEach { b.setValue(it, AutofillValue.forText(String(pw))) }
+            val fr = FillResponse.Builder().addDataset(b.build()).build()
+            val reply = Intent().putExtra(AutofillManager.EXTRA_AUTHENTICATION_RESULT, fr)
+            setResult(Activity.RESULT_OK, reply)
+            alertDialog.dismiss() // if we don't close it explicitly, an exception is thrown for leaking it
+            finish()
+        }
+    }
 
-    inner class GenerateTask(private val masterPassword: CharArray,
+    open inner class GenerateTask(private val masterPassword: CharArray,
                              private val realm: Protocol.Realm,
                              private val alertDialog: AlertDialog,
                              feedbackLabel: TextView) : UserTask(feedbackLabel) {
+
         override fun run() = Protocol.get(masterPassword, realm, cs, this)
 
         override fun handlePassword(pw: CharArray) {
@@ -273,6 +309,8 @@ class AccountsActivity : AppCompatActivity() {
                 pullToRefresh.setOnRefreshListener {
                     updateUserList(hostname)
                 }
+
+                autoFill = intent.hasExtra(EXTRA_ACCOUNTS_AUTOFILL)
             }
         }
     }
@@ -363,12 +401,14 @@ class AccountsActivity : AppCompatActivity() {
         if (feedbackText != null) feedbackLabel.setText(feedbackText)
         linearLayout.addView(feedbackLabel)
 
+        val btnAutoFill = Button(this).apply { setText(R.string.btn_generate_autofill) }
         val btnGenerate = Button(this).apply { setText(R.string.btn_generate_copy) }
         val btnChange = Button(this).apply { setText(R.string.btn_generate_change) }
         val btnUndo = Button(this).apply { setText(R.string.btn_undo_change) }
         val btnCommit = Button(this).apply { setText(R.string.btn_commit_change) }
         val btnDelete = Button(this).apply { setText(R.string.btn_delete_user) }
 
+        if (autoFill) linearLayout.addView(btnAutoFill)
         linearLayout.addView(btnGenerate)
         linearLayout.addView(btnChange)
         linearLayout.addView(btnCommit)
@@ -380,6 +420,10 @@ class AccountsActivity : AppCompatActivity() {
             setView(linearLayout)
             setNeutralButton(R.string.close, null)
             show()
+        }
+
+        if (autoFill) btnAutoFill.setOnClickListener {
+            AutoFillTask(masterPassword.text.asCharArray, realm, alertDialog, feedbackLabel).execute()
         }
 
         btnGenerate.setOnClickListener {
