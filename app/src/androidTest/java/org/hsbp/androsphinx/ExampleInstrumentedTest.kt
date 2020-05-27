@@ -37,7 +37,6 @@ class ExampleInstrumentedTest {
 
     @Test
     fun storageTest() {
-        NaCl.sodium()
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
         val storage = AndroidCredentialStore(appContext)
         val key = storage.key
@@ -57,7 +56,6 @@ class ExampleInstrumentedTest {
 
     @Test
     fun sphinxNetworkTest() {
-        NaCl.sodium()
         val cs = MockCredentialStore()
         val username = "network"
         val username2 = "network2"
@@ -143,7 +141,6 @@ class ExampleInstrumentedTest {
     @Test
     @Suppress("SpellCheckingInspection")
     fun readEvalPrintLoopTest() {
-        NaCl.sodium()
         ServerSocket(2355).accept().use { socket ->
             val br = socket.getInputStream().bufferedReader()
             val pw = PrintWriter(socket.getOutputStream().writer())

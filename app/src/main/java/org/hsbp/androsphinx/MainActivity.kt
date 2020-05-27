@@ -5,7 +5,6 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.android.synthetic.main.activity_main.*
-import org.libsodium.jni.NaCl
 import java.net.URL
 
 class MainActivity : AppCompatActivity() {
@@ -13,8 +12,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
-        NaCl.sodium()
 
         Sphinx.Challenge("shitty password\u0000".toCharArray()).use { c ->
             val secret = ByteArray(32) { ' '.toByte() }
