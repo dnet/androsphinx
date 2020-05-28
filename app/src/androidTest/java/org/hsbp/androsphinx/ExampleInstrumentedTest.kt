@@ -8,7 +8,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 import org.junit.Assert.*
-import org.libsodium.jni.NaCl
 import java.io.PrintWriter
 import java.lang.NumberFormatException
 import java.net.ServerSocket
