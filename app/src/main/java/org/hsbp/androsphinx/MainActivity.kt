@@ -3,7 +3,10 @@ package org.hsbp.androsphinx
 import android.app.SearchManager
 import android.content.Intent
 import android.os.Bundle
+import android.view.Menu
 import androidx.appcompat.app.AppCompatActivity
+import android.widget.SearchView
+import androidx.core.content.getSystemService
 import kotlinx.android.synthetic.main.activity_main.*
 import java.net.URL
 
@@ -13,12 +16,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        button.setOnClickListener {
+        fab_settings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
-        }
-
-        search_btn.setOnClickListener {
-            onSearchRequested()
         }
 
         val i = intent
@@ -34,5 +33,16 @@ class MainActivity : AppCompatActivity() {
                 putExtra(SearchManager.QUERY, url.toString())
             })
         }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_main, menu)
+
+        val searchManager = getSystemService<SearchManager>()
+        (menu.findItem(R.id.app_bar_search).actionView as SearchView).apply {
+            setSearchableInfo(searchManager?.getSearchableInfo(componentName))
+        }
+
+        return true
     }
 }
