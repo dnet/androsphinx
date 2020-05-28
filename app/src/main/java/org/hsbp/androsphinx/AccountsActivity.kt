@@ -151,7 +151,7 @@ class AccountsActivity : AppCompatActivity() {
             SphinxAutofillService.parse(structure.getWindowNodeAt(0).rootViewNode, result)
             val remoteView =
                 RemoteViews(packageName, android.R.layout.simple_list_item_1).apply {
-                    setTextViewText(android.R.id.text1, "AutoFill ${realm.username} using SPHINX") // TODO string resource
+                    setTextViewText(android.R.id.text1, getString(R.string.autofill_remote_button_user_text, realm.username))
                 }
             val b = Dataset.Builder(remoteView)
             result.usernames.filterNotNull().forEach { b.setValue(it, AutofillValue.forText(realm.username)) }
