@@ -4,7 +4,7 @@ import android.util.Base64
 
 /**
  * 
- * SPDX-FileCopyrightText: 2019, Andras Veres-Szentkiaalyi <vsza@vsza.hu>
+ * SPDX-FileCopyrightText: 2019, Andras Veres-Szentkiralyi <vsza@vsza.hu>
  * SPDX-License-Identifier: MIT
  */
 
