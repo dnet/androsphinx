@@ -17,6 +17,9 @@ import java.util.*
  * Instrumented test, which will execute on an Android device.
  *
  * See [testing documentation](http://d.android.com/tools/testing).
+ *
+ * SPDX-FileCopyrightText: 2019, Andras Veres-Szentkiaalyi <vsza@vsza.hu>
+ * SPDX-License-Identifier: MIT
  */
 
 @Suppress("SpellCheckingInspection")

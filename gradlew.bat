@@ -1,3 +1,6 @@
+:: SPDX-FileCopyrightText: 2019, Andras Veres-Szentkiaalyi <vsza@vsza.hu>
+:: SPDX-License-Identifier: MIT
+
 @if "%DEBUG%" == "" @echo off
 @rem ##########################################################################
 @rem
