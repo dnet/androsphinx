@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# SPDX-FileCopyrightText: 2019, Andras Veres-Szentkiaalyi <vsza@vsza.hu>
+# SPDX-License-Identifier: MIT
+
 from argparse import ArgumentParser
 from socket import create_connection
 from subprocess import Popen, PIPE
