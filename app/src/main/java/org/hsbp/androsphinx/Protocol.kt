@@ -48,7 +48,7 @@ class Protocol {
                 val newRwd = if (requiresAuth) challenge.finish(sis) else oldRwd
 
                 val (rule, size) = if (createRule == null) {
-                    val ruleBytes = cs.getSealKey(oldRwd).decrypt(sis.readExactly(ENCRYPTED_RULE_LENGTH))
+                    val ruleBytes = cs.getSealKey().decrypt(sis.readExactly(ENCRYPTED_RULE_LENGTH))
                     val combined =
                         ByteBuffer.wrap(ruleBytes).order(ByteOrder.BIG_ENDIAN).getShort()
                             .toInt()
@@ -58,7 +58,7 @@ class Protocol {
                 } else createRule
 
                 if (writeRule) {
-                    sendRule(s, rule, size, cs.getSealKey(newRwd), cs.getSignKey(hostId, newRwd))
+                    sendRule(s, rule, size, cs.getSealKey(), cs.getSignKey(hostId, newRwd))
                 }
 
                 if (createRule != null) {
