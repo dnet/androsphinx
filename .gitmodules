@@ -1,3 +1,6 @@
 [submodule "libsphinx"]
 	path = libsphinx
 	url = https://github.com/stef/libsphinx
+[submodule "libsodium"]
+	path = libsodium
+	url = https://github.com/jedisct1/libsodium
