@@ -23,16 +23,19 @@ import java.util.*
  */
 
 @Suppress("SpellCheckingInspection")
-const val EXPECTED_BASIC_TEST = "Dnw7PR+5GmrE/t6RtaF12gPIQSWaIGaSje7RgQvasy4="
+const val EXPECTED_BASIC_TEST = "ytPIZvsZlQAr/9nLg4MX0g2F+U0V6K141xEECIwNLEA="
 
 @RunWith(AndroidJUnit4::class)
 class ExampleInstrumentedTest {
     @Test
     fun sphinxBasicTest() {
-        Sphinx.Challenge("shitty password\u0000".toCharArray()).use { c ->
-            val secret = ByteArray(32) { ' '.toByte() }
+        val salt = ByteArray(16) { 0 }
+        salt[0] = 1
+        Sphinx.Challenge("shitty password".toCharArray(), salt).use { c ->
+            val secret = ByteArray(32) { 0 }
+            secret[0] = 1
             val resp = Sphinx.respond(c.challenge, secret)!!
-            val rwd = c.finish(resp)!!
+            val rwd = c.finish(salt, resp)!!
             assertArrayEquals(Base64.decode(EXPECTED_BASIC_TEST, Base64.DEFAULT), rwd)
         }
     }

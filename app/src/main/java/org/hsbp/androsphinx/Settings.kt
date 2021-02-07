@@ -17,7 +17,6 @@ import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import com.google.zxing.integration.android.IntentIntegrator
-import org.libsodium.jni.Sodium
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import android.graphics.Bitmap

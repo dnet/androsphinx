@@ -3,8 +3,6 @@
 
 package org.hsbp.androsphinx
 
-import org.libsodium.jni.Sodium
-import org.libsodium.jni.SodiumConstants
 import java.io.InputStream
 import java.lang.RuntimeException
 import java.net.Socket
@@ -16,7 +14,7 @@ const val SIZE_MASK: Int = 0x7F
 const val RULE_SHIFT: Int = 7
 const val RULE_BYTES_LENGTH: Int = 2
 const val AUTH_NONCE_BYTES: Int = 32
-const val ENCRYPTED_RULE_LENGTH: Int = SodiumConstants.XSALSA20_POLY1305_SECRETBOX_NONCEBYTES + SodiumConstants.MAC_BYTES + RULE_BYTES_LENGTH
+const val ENCRYPTED_RULE_LENGTH: Int = CRYPTO_SECRETBOX_XSALSA20POLY1305_NONCEBYTES + CRYPTO_SECRETBOX_XSALSA20POLY1305_MACBYTES + RULE_BYTES_LENGTH
 
 class Protocol {
     enum class Command(val code: Byte, val requiresAuth: Boolean = true, val writeRule: Boolean = false) {
@@ -27,12 +25,12 @@ class Protocol {
         fun <T> connect(cs: CredentialStore, password: CharArray, id: ByteArray, body: (Socket, Sphinx.Challenge, ByteArray) -> T): T =
             cs.createSocket().use { socket ->
                 Sphinx.Challenge(password).use { challenge ->
-                    val message = ByteBuffer.allocate(DECAF_255_SER_BYTES + Sodium.crypto_generichash_bytes() + 1)
+                    val message = ByteBuffer.allocate(DECAF_255_SER_BYTES + CRYPTO_GENERICHASH_BYTES + 1)
                     message.put(code)
                     message.put(id)
                     message.put(challenge.challenge)
                     socket.getOutputStream().write(message.array())
-                    val rwd = challenge.finish(socket.getInputStream())
+                    val rwd = challenge.finish(id, socket.getInputStream())
                     if (requiresAuth) cs.auth(socket, id, rwd)
                     return body(socket, challenge, rwd)
                 }
@@ -45,7 +43,7 @@ class Protocol {
 
             val derived = connect(cs, password, hostId) { s, challenge, oldRwd ->
                 val sis = s.getInputStream()
-                val newRwd = if (requiresAuth) challenge.finish(sis) else oldRwd
+                val newRwd = if (requiresAuth) challenge.finish(hostId, sis) else oldRwd
 
                 val (rule, size) = if (createRule == null) {
                     val ruleBytes = cs.getSealKey().decrypt(sis.readExactly(ENCRYPTED_RULE_LENGTH))
@@ -73,7 +71,7 @@ class Protocol {
     }
 
     data class Realm(val username: String, val hostname: String) {
-        fun hash(cs: CredentialStore) = genericHash("$username|$hostname".toByteArray(), cs.key.foldHash(Context.SALT))
+        fun hash(cs: CredentialStore) = org.hsbp.androsphinx.Sodium.genericHash("$username|$hostname".toByteArray(), cs.key.foldHash(Context.SALT))
 
         val withoutUser: Realm
             get() = Realm(username = "", hostname = hostname)
@@ -150,28 +148,27 @@ private fun updateUserList(socket: Socket, cs: Protocol.CredentialStore, realm: 
     val usernameList = receiveUsernameList(socket, sealKey)
     val users = update(usernameList) ?: return
 
-    val (nonce, encrypted) = sealKey.encrypt(users.joinToString("\u0000").toByteArray())
-    val payloadSize = nonce.size + encrypted.size
+    val encrypted = sealKey.encrypt(users.joinToString("\u0000").toByteArray())
+    val payloadSize = encrypted.size
     val envelope = if (usernameList.isEmpty()) {
-        ByteBuffer.allocate(SodiumConstants.PUBLICKEY_BYTES + 2 + payloadSize).put(hostSk.publicKey)
+        ByteBuffer.allocate(CRYPTO_SIGN_PUBLICKEYBYTES + 2 + payloadSize).put(hostSk.publicKey)
     } else {
         ByteBuffer.allocate(2 + payloadSize)
     }.order(ByteOrder.BIG_ENDIAN)
     envelope.putShort(payloadSize.toShort())
-    envelope.put(nonce)
     envelope.put(encrypted)
     val message = envelope.array()
     sos.write(message + hostSk.sign(message))
 }
 
-fun Sphinx.Challenge.finish(stream: InputStream): ByteArray =
-    finish(stream.readExactly(DECAF_255_SER_BYTES)) ?: throw Protocol.ServerFailureException()
+fun Sphinx.Challenge.finish(salt: ByteArray, stream: InputStream): ByteArray =
+    finish(salt, stream.readExactly(DECAF_255_SER_BYTES)) ?: throw Protocol.ServerFailureException()
 
 fun sendRule(socket: Socket, charClasses: Set<CharacterClass>, size: Int, sealKey: SecretBoxKey, signKey: Ed25519PrivateKey) {
     val rule = (CharacterClass.serialize(charClasses).toInt() shl RULE_SHIFT) or (size and SIZE_MASK)
     val ruleBytes = ByteBuffer.allocate(RULE_BYTES_LENGTH).order(ByteOrder.BIG_ENDIAN).putShort(rule.toShort()).array()
-    val (ruleNonce, ruleCipherText) = sealKey.encrypt(ruleBytes)
-    val msg = signKey.publicKey + ruleNonce + ruleCipherText
+    val ruleCipherText = sealKey.encrypt(ruleBytes)
+    val msg = signKey.publicKey + ruleCipherText
     socket.getOutputStream().write(msg + signKey.sign(msg))
 }
 

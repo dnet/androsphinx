@@ -3,31 +3,35 @@
 set -e
 
 SPHINX=libsphinx
-SODIUM=libsodium_headers
+SODIUM=libsodium
 OUTDIR=app/src/main/jniLibs
 
 compile_libsphinx_arch() {
-	ARCH=$1
-	TARGET=../../$OUTDIR/$ARCH
-	cp ../../app/build/intermediates/merged_native_libs/debug/out/lib/$ARCH/libsodiumjni.so .
+	ANDROID_ARCH=$1
+	TARGET=../../$OUTDIR/$ANDROID_ARCH
+	SODIUM_ARCH=$3
+
+	cd $SODIUM
+	LIBSODIUM_FULL_BUILD=1 dist-build/android-$SODIUM_ARCH.sh
+	cd src
+	cp libsodium/.libs/libsodium.so $TARGET
+
+	cd ../../$SPHINX/src
+	cp $TARGET/libsodium.so .
 	make clean
-	make CC=$2 SODIUM=../../$SODIUM android
+	make CC=$2 SODIUM=../../$SODIUM/src/libsodium/include android
 	mkdir -p $TARGET
 	cp libsphinx.so $TARGET
+	cd ../..
 }
 
 git submodule update --init --recursive --remote
 
-rm -rf $SODIUM
-mkdir $SODIUM
-ln -s /usr/include/sodium* $SODIUM
+cd $SODIUM
+./autogen.sh
+cd ..
 
-cd $SPHINX/src
-
-compile_libsphinx_arch "x86_64"          "x86_64-linux-android21-clang"
-compile_libsphinx_arch "x86"               "i686-linux-android21-clang"
-compile_libsphinx_arch "arm64-v8a"      "aarch64-linux-android21-clang"
-compile_libsphinx_arch "armeabi-v7a" "armv7a-linux-androideabi21-clang"
-
-cd ../..
-rm -rf $SODIUM
+compile_libsphinx_arch "x86_64"          "x86_64-linux-android21-clang" "x86_64"
+compile_libsphinx_arch "x86"               "i686-linux-android21-clang" "x86"
+compile_libsphinx_arch "arm64-v8a"      "aarch64-linux-android21-clang" "armv8-a"
+compile_libsphinx_arch "armeabi-v7a" "armv7a-linux-androideabi21-clang" "armv7-a"

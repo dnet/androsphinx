@@ -16,17 +16,19 @@ to match your file system layout:
 
 	sdk.dir=/path/to/android/sdk
 
-Then execute Gradle:
-
-	./gradlew build
-
-If this is the first build, `libsphinx.so` also needs to be built. To do this,
-update `PATH` to include the NDK toolchain commands such as `clang` and run:
+If this is the first build, `libsphinx.so` and `libsodium.so` also needs to
+be built. To do this, update `PATH` to include the NDK toolchain commands 
+such as `clang`, set the environment variable `ANDROID_NDK_HOME` to the
+appropriate path and run:
 
 	sh build-libsphinx.sh
 
-After a successful build of `libsphinx.so`, Gradle must be executed again to
-include these files in the APK.
+After a successful build of `libsphinx.so`, Gradle can build the app itself,
+compiling managed Kotlin and Java code, and packaging the `.so` files from
+the above step. So if only Kotlin/Java code is changed, the command below
+does everyting to produce an APK:
+
+	./gradlew build
 
 The resulting debug APK will be here:
 
@@ -50,9 +52,6 @@ Dependencies
  - Android SDK
  - Android NDK
  - Gradle (included)
- - libsodium headers (only needed for building `libsphinx.so`, Debian/Ubuntu package: `libsodium-dev`)
- - libsodium-jni https://github.com/joshjdevl/libsodium-jni (referenced via Gradle dependency)
- - anything needed to build the Decaf elliptic curve library (Python, host C compiler)
 
 QR code format
 --------------

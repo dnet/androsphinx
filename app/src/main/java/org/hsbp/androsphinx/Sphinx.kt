@@ -9,30 +9,45 @@ import java.nio.CharBuffer
 const val SPHINX_255_SCALAR_BYTES: Int = 32
 const val SPHINX_255_SER_BYTES: Int = 32
 const val DECAF_255_SER_BYTES: Int = 32
+const val CRYPTO_GENERICHASH_BYTES: Int = 32
+const val CRYPTO_SIGN_SECRETKEYBYTES: Int = 64
+const val CRYPTO_SIGN_PUBLICKEYBYTES: Int = 32
+const val CRYPTO_SIGN_SEEDBYTES: Int = 32
+const val CRYPTO_SECRETBOX_NONCEBYTES: Int = 24
+const val CRYPTO_SECRETBOX_XSALSA20POLY1305_KEYBYTES: Int = 32
+const val CRYPTO_SECRETBOX_XSALSA20POLY1305_NONCEBYTES: Int = 24
+const val CRYPTO_SECRETBOX_XSALSA20POLY1305_MACBYTES: Int = 16
+
+class Sodium {
+    companion object {
+        @JvmStatic external fun genericHash(message: ByteArray, salt: ByteArray): ByteArray
+        @JvmStatic external fun randomBytes(amount: Int): ByteArray
+        @JvmStatic external fun cryptoSignSeedKeypair(seed: ByteArray): ByteArray
+        @JvmStatic external fun cryptoSignEd25519SkToPk(sk: ByteArray): ByteArray
+        @JvmStatic external fun cryptoSignDetached(sk: ByteArray, msg: ByteArray): ByteArray
+        @JvmStatic external fun cryptoSecretboxEasy(key: ByteArray, msg: ByteArray): ByteArray
+        @JvmStatic external fun cryptoSecretboxOpenEasy(key: ByteArray, msg: ByteArray): ByteArray?
+    }
+}
 
 class Sphinx {
     companion object {
-        init {
-            System.loadLibrary("sphinx")
-        }
-
-        @JvmStatic private external fun challenge(password: ByteArray, blindingFactor: ByteArray, challenge: ByteArray)
+        @JvmStatic private external fun challenge(password: ByteArray, salt: ByteArray, blindingFactor: ByteArray, challenge: ByteArray)
         @JvmStatic external fun respond(challenge: ByteArray, secret: ByteArray): ByteArray?
-        @JvmStatic private external fun finish(password: ByteArray, blindingFactor: ByteArray, resp: ByteArray): ByteArray?
+        @JvmStatic private external fun finish(password: ByteArray, blindingFactor: ByteArray, salt: ByteArray, resp: ByteArray): ByteArray?
     }
 
-    class Challenge(pwd: CharArray) : AutoCloseable {
+    class Challenge(pwd: CharArray, salt: ByteArray = ByteArray(0)) : AutoCloseable {
         private val blindingFactor: ByteArray = ByteArray(SPHINX_255_SCALAR_BYTES)
         val challenge: ByteArray = ByteArray(SPHINX_255_SER_BYTES)
         private val passwordBytes = toBytes(pwd)
 
         init {
-            challenge(passwordBytes, blindingFactor, challenge)
+            challenge(passwordBytes, salt, blindingFactor, challenge)
         }
 
-        fun finish(response: ByteArray): ByteArray? {
-            return finish(passwordBytes, blindingFactor, response)
-        }
+        fun finish(salt: ByteArray, response: ByteArray): ByteArray? =
+            finish(passwordBytes, blindingFactor, salt, response)
 
         override fun close() {
             challenge.fill(0)
