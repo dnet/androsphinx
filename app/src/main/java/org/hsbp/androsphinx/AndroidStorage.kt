@@ -10,6 +10,7 @@ import androidx.security.crypto.EncryptedFile
 import androidx.security.crypto.MasterKeys
 import java.io.FileNotFoundException
 import java.io.File
+import java.io.IOException
 
 private const val FILE_NAME_KEY = "key"
 private val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
@@ -26,7 +27,7 @@ class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStor
             encryptedKeyFile.openFileInput().use {
                 MasterKey.fromByteArray(it.readBytes())
             }
-        } catch (e: FileNotFoundException) {
+        } catch (e: IOException) {
             MasterKey.generate().also(this::writeMasterKey)
         }
 
