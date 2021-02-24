@@ -56,7 +56,7 @@
     <string name="preference_category_autofill">AutoFill</string>
     <string name="autofill_system_service_null_title">Cannot get AutoFill system service</string>
     <string name="autofill_system_service_null_summary">Please try again and report this error if this persists</string>
-    <string name="autofill_provider_already_set">AndroSphinx is already set as your AutoFill provider</string>
+    <string name="autofill_provider_already_set">AndroSphinx is set as your AutoFill provider</string>
     <string name="request_autofill_set_title">Set AndroSphinx to provide AutoFill services</string>
     <string name="request_autofill_set_summary">Tap here to open the relevant setting</string>
     <string name="autofill_not_supported_title">Your device doesn\'t support AutoFill</string>
