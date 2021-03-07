@@ -14,13 +14,13 @@ compile_libsphinx_arch() {
 	cd $SODIUM
 	LIBSODIUM_FULL_BUILD=1 dist-build/android-$SODIUM_ARCH.sh
 	cd src
+	mkdir -p $TARGET
 	cp libsodium/.libs/libsodium.so $TARGET
 
 	cd ../../$SPHINX/src
 	cp $TARGET/libsodium.so .
 	make clean
 	make CC=$2 SODIUM=../../$SODIUM/src/libsodium/include android
-	mkdir -p $TARGET
 	cp libsphinx.so $TARGET
 	cd ../..
 }
