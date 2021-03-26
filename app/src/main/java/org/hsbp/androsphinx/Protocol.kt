@@ -83,6 +83,7 @@ class Protocol {
         val key: MasterKey
         val host: String
         val port: Int
+        val rwdKeys: Boolean
     }
 
     interface PasswordCallback {
@@ -194,13 +195,13 @@ private fun InputStream.readExactly(length: Int): ByteArray {
     return buffer
 }
 
-fun Protocol.CredentialStore.getSignKey(id: ByteArray, rwd: ByteArray = ByteArray(0)): Ed25519PrivateKey =
-    Ed25519PrivateKey.fromSeed(key.foldHash(Context.SIGNING, id, rwd))
+fun Protocol.CredentialStore.getSignKey(id: ByteArray, rwd: ByteArray? = null): Ed25519PrivateKey =
+    Ed25519PrivateKey.fromSeed(key.foldHash(Context.SIGNING, id, if (rwdKeys) rwd else null))
 
-fun Protocol.CredentialStore.getSealKey(rwd: ByteArray = ByteArray(0)): SecretBoxKey =
-    SecretBoxKey.fromByteArray(key.foldHash(Context.ENCRYPTION, rwd))
+fun Protocol.CredentialStore.getSealKey(): SecretBoxKey =
+    SecretBoxKey.fromByteArray(key.foldHash(Context.ENCRYPTION))
 
-fun Protocol.CredentialStore.auth(socket: Socket, hostId: ByteArray, rwd: ByteArray = ByteArray(0)) {
+fun Protocol.CredentialStore.auth(socket: Socket, hostId: ByteArray, rwd: ByteArray? = null) {
     val nonce = socket.getInputStream().readExactly(AUTH_NONCE_BYTES)
     socket.getOutputStream().write(getSignKey(hostId, rwd).sign(nonce))
 }

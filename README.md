@@ -58,7 +58,9 @@ QR code format
 
 Server details can be configured using a simple QR code with the following format:
 
- - Format flags (1 byte, LSB: client credentials present)
+ - Format flags (1 byte)
+   - `0x01` client credentials present (LSB)
+   - `0x02` `rwd_keys` is enabled
  - Client master key (32 bytes, "raw" without any encoding, only present when format type has LSB set)
  - Server port (big endian, 2 bytes, "raw" without any encoding)
  - Server hostname (UTF-8)

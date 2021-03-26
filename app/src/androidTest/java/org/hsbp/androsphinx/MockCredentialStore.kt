@@ -21,4 +21,7 @@ class MockCredentialStore : Protocol.CredentialStore {
 
     override val key: MasterKey
         get() = MasterKey.fromByteArray(Base64.decode(MOCK_KEY, Base64.DEFAULT))
+
+    override val rwdKeys: Boolean
+        get() = false
 }

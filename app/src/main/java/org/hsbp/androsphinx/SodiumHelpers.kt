@@ -39,8 +39,8 @@ inline class MasterKey(private val bytes: ByteArray) {
 
     fun contentEquals(other: MasterKey) = other.bytes.contentEquals(bytes)
 
-    fun foldHash(context: Context, vararg messages: ByteArray): ByteArray =
-        context.foldHash(*(listOf(asBytes) + messages.toList()).toTypedArray())
+    fun foldHash(context: Context, vararg messages: ByteArray?): ByteArray =
+        context.foldHash(*(listOf(asBytes) + messages.filterNotNull().toList()).toTypedArray())
 
     val asBytes: ByteArray
         get() = bytes

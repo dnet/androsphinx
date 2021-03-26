@@ -17,6 +17,9 @@
             android:maxLength="5"
             android:singleLine="true"
             android:title="@string/preference_port" />
+        <SwitchPreference
+            android:key="rwd_keys"
+            android:title="@string/preference_rwd_keys" />
         <Preference
             android:key="scan_qr"
             android:title="@string/scan_qr_title"
