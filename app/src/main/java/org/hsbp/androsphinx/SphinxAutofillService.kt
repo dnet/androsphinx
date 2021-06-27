@@ -29,7 +29,7 @@ class SphinxAutofillService : AutofillService() {
 
         val result = ParseResult()
         parse(rvn, result)
-        val domain = result.domains.firstOrNull()
+        val domain = result.domains.firstOrNull(String::isNotEmpty)
         if (domain == null) {
             callback.onFailure(getString(R.string.autofill_no_domain_failure))
         } else {
