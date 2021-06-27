@@ -30,6 +30,7 @@ import android.widget.ImageView
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.getSystemService
 import androidx.preference.SwitchPreference
+import com.commonsware.cwac.security.flagsecure.FlagSecureHelper
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import java.util.*
@@ -62,7 +63,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
         ShareType.values().forEach { t ->
             val p = preferenceManager.findPreference<Preference>(t.key)!!
             p.setOnPreferenceClickListener {
-                showQR(t.serialize(requireContext()), p.title)
+                showQR(t.serialize(requireContext()), p.title, t.privateMaterialSize > 0)
                 true
             }
         }
@@ -110,7 +111,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
         }
     }
 
-    private fun showQR(payload: ByteArray, title: CharSequence) {
+    private fun showQR(payload: ByteArray, title: CharSequence, hasSecret: Boolean) {
         val display = requireActivity().windowManager.defaultDisplay
         val size = Point()
         display.getSize(size)
@@ -127,7 +128,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
                 setImageDrawable(BitmapDrawable(requireActivity().resources, bm))
             })
             setNeutralButton(R.string.close, null)
-            show()
+            if (hasSecret) FlagSecureHelper.markDialogAsSecure(create()).show() else show()
         }
     }
 

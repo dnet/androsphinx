@@ -17,6 +17,7 @@ import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.addTextChangedListener
+import com.commonsware.cwac.security.flagsecure.FlagSecureHelper
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.android.synthetic.main.activity_accounts.*
 import kotlinx.android.synthetic.main.content_accounts.*
@@ -367,8 +368,9 @@ class AccountsActivity : AppCompatActivity() {
                 CreateTask(pw, realm, rule, size).execute()
             }
             setNeutralButton(android.R.string.cancel, null)
-        }.show()
+        }.create()
 
+        FlagSecureHelper.markDialogAsSecure(alertDialog).show()
         val btn = alertDialog.getButton(AlertDialog.BUTTON_POSITIVE)
 
         fun updateEnabled() {
@@ -423,8 +425,9 @@ class AccountsActivity : AppCompatActivity() {
             setTitle(realm.username)
             setView(linearLayout)
             setNeutralButton(R.string.close, null)
-            show()
+            create()
         }
+        FlagSecureHelper.markDialogAsSecure(alertDialog).show()
 
         if (autoFill) btnAutoFill.setOnClickListener {
             AutoFillTask(masterPassword.text.asCharArray, realm, alertDialog, feedbackLabel).execute()
