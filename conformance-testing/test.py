@@ -61,6 +61,8 @@ class Tester(object):
 
                 username = f"user-{uuid4()}"
                 as_pw = self.asrepl_cmd("create", master_pwd, username, hostname, chars, size)
+                ps_ls = self.pwdsphinx_cmd(None, "list", hostname)
+                assert username in ps_ls, f"{ps_ls!r} does not contain {username!r}"
                 ps_pw = self.pwdsphinx_cmd(master_pwd, "get", username, hostname)
                 assert ps_pw == as_pw, f"{size} of {chars!r} <- {ps_pw!r} != {as_pw!r}"
 
