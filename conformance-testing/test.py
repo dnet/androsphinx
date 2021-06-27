@@ -38,7 +38,8 @@ class Tester(object):
         cmdline = ['python3', '-m', 'pwdsphinx.sphinx']
         cmdline.extend(map(str, args))
         ps = Popen(cmdline, cwd=self.path, stdin=PIPE, stdout=PIPE)
-        stdout, _stderr = ps.communicate(master_pwd.encode('utf-8'))
+        stdout, _stderr = ps.communicate(
+                master_pwd.encode('utf-8') if master_pwd else None)
         if ps.returncode != 0:
             raise RuntimeError(f"pwdsphinx error, returncode was {ps.returncode}")
         return stdout.rstrip(b'\n').decode('utf-8')
