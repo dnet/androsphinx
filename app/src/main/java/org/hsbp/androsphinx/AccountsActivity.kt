@@ -33,8 +33,11 @@ import android.view.autofill.AutofillManager.EXTRA_ASSIST_STRUCTURE
 import android.app.assist.AssistStructure
 import android.service.autofill.Dataset
 import android.service.autofill.FillResponse
+import android.text.format.DateUtils
 import android.view.autofill.AutofillManager
 import android.view.autofill.AutofillValue
+import com.nulabinc.zxcvbn.Zxcvbn
+import kotlin.math.roundToLong
 
 @Suppress("SpellCheckingInspection")
 const val EXTRA_ACCOUNTS_AUTOFILL = "org.hsbp.androsphinx.AccountsActivity.EXTRA_ACCOUNTS_AUTOFILL"
@@ -355,6 +358,8 @@ class AccountsActivity : AppCompatActivity() {
                 linearLayout.addView(et)
                 et
             }
+        val passwordStrengthMeter = TextView(this)
+        linearLayout.addView(passwordStrengthMeter)
 
         val alertDialog = with(AlertDialog.Builder(this)) {
             setTitle(R.string.add_username_title)
@@ -383,6 +388,20 @@ class AccountsActivity : AppCompatActivity() {
             it.addTextChangedListener {
                 updateEnabled()
             }
+        }
+
+        val zxcvbn = Zxcvbn()
+        val strengthLevels = arrayOf(R.string.password_strength_weak, R.string.password_strength_fair,
+            R.string.password_strength_good, R.string.password_strength_strong, R.string.password_strength_very_strong)
+
+        masterPasswords[0].addTextChangedListener { field: Editable? ->
+            val strength = zxcvbn.measure(field ?: return@addTextChangedListener)
+            val cts = strength.crackTimeSeconds
+            val now = Date().time
+            val cracked = now + (cts.onlineThrottling100perHour * 1000).roundToLong()
+            passwordStrengthMeter.text = getString(R.string.password_strength_format,
+                getString(strengthLevels[strength.score]),
+                DateUtils.getRelativeTimeSpanString(cracked, now, 0L))
         }
 
         ccWidgets.values.forEach {

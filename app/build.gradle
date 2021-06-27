@@ -41,6 +41,7 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
     implementation "androidx.security:security-crypto:1.0.0-rc01"
     implementation 'com.commonsware.cwac:security:0.8.+'
+    implementation 'com.nulab-inc:zxcvbn:1.5.2'
 }
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile) {
     kotlinOptions {
