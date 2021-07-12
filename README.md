@@ -16,14 +16,15 @@ to match your file system layout:
 
 	sdk.dir=/path/to/android/sdk
 
-If this is the first build, `libsphinx.so` and `libsodium.so` also needs to
-be built. To do this, update `PATH` to include the NDK toolchain commands 
+If this is the first build, `libsphinx.so`, `libequihash.so` and
+`libsodium.so` also needs to be built and `libc++_shared.so` needs to be
+copied. To do this, update `PATH` to include the NDK toolchain commands
 such as `clang`, set the environment variable `ANDROID_NDK_HOME` to the
 appropriate path and run:
 
 	sh build-libsphinx.sh
 
-After a successful build of `libsphinx.so`, Gradle can build the app itself,
+After a successful build/copy of the above, Gradle can build the app itself,
 compiling managed Kotlin and Java code, and packaging the `.so` files from
 the above step. So if only Kotlin/Java code is changed, the command below
 does everyting to produce an APK:

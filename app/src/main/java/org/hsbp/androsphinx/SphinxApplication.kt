@@ -9,5 +9,6 @@ import android.app.Application
 class SphinxApplication : Application() {
     init {
         System.loadLibrary("sphinx") // and transitively, (lib)sodium
+        System.loadLibrary("equihash") // and transitively, (lib)sodium
     }
 }

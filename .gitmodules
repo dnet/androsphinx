@@ -4,3 +4,6 @@
 [submodule "libsodium"]
 	path = libsodium
 	url = https://github.com/jedisct1/libsodium
+[submodule "equihash"]
+	path = equihash
+	url = https://github.com/stef/equihash

@@ -3,6 +3,7 @@ package org.hsbp.androsphinx
 import android.util.Base64
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import org.hsbp.equihash.Equihash
 
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -12,6 +13,7 @@ import java.io.PrintWriter
 import java.lang.NumberFormatException
 import java.net.ServerSocket
 import java.util.*
+import kotlin.experimental.xor
 
 /**
  * Instrumented test, which will execute on an Android device.
@@ -24,6 +26,8 @@ import java.util.*
 
 @Suppress("SpellCheckingInspection")
 const val EXPECTED_BASIC_TEST = "ytPIZvsZlQAr/9nLg4MX0g2F+U0V6K141xEECIwNLEA="
+@Suppress("SpellCheckingInspection")
+const val EXPECTED_SOL = "AAAAAla2ZzCKSqru43jruW0FQAcmV0tdnJNE9r2ovD7R/BfjIVK2zg+STcclSSYqeTXUvUBVbzOL4Q4Im9W66oPk8XLcvqJVywe5dA=="
 
 @RunWith(AndroidJUnit4::class)
 class ExampleInstrumentedTest {
@@ -37,6 +41,22 @@ class ExampleInstrumentedTest {
             val resp = Sphinx.respond(c.challenge, secret)!!
             val rwd = c.finish(salt, resp)!!
             assertArrayEquals(Base64.decode(EXPECTED_BASIC_TEST, Base64.DEFAULT), rwd)
+        }
+    }
+
+    @Test
+    fun equihashBasicTest() {
+        val n = 102
+        val k = 5
+        val seed = "some initial seed".toByteArray()
+        val sol = Equihash.solve(n, k, seed)
+        if (sol == null) {
+            fail("sol == null")
+        } else {
+            assertArrayEquals(Base64.decode(EXPECTED_SOL, Base64.DEFAULT), sol)
+            assert(Equihash.verify(n, k, seed, sol))
+            sol[16] = sol[16].xor(1)
+            assertFalse(Equihash.verify(n, k, seed, sol))
         }
     }
 

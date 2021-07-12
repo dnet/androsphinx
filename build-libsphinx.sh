@@ -8,7 +8,8 @@ OUTDIR=app/src/main/jniLibs
 
 compile_libsphinx_arch() {
 	ANDROID_ARCH=$1
-	TARGET=../../$OUTDIR/$ANDROID_ARCH
+	TARGET_EQUIHASH=../$OUTDIR/$ANDROID_ARCH
+	TARGET=../$TARGET_EQUIHASH
 	SODIUM_ARCH=$3
 
 	cd $SODIUM
@@ -17,7 +18,13 @@ compile_libsphinx_arch() {
 	mkdir -p $TARGET
 	cp libsodium/.libs/libsodium.so $TARGET
 
-	cd ../../$SPHINX/src
+	cd ../../equihash
+	cp $TARGET_EQUIHASH/libsodium.so .
+	make clean
+	make CXX=$2++ SODIUM=../$SODIUM/src/libsodium/include android
+	cp libequihash.so $ANDROID_NDK_HOME/sources/cxx-stl/llvm-libc++/libs/$1/libc++_shared.so $TARGET_EQUIHASH
+
+	cd ../$SPHINX/src
 	cp $TARGET/libsodium.so .
 	make clean
 	make CC=$2 SODIUM=../../$SODIUM/src/libsodium/include android
