@@ -8,7 +8,6 @@ import android.content.SharedPreferences
 import androidx.preference.PreferenceManager
 import androidx.security.crypto.EncryptedFile
 import androidx.security.crypto.MasterKeys
-import java.io.FileNotFoundException
 import java.io.File
 import java.io.IOException
 
