@@ -78,4 +78,5 @@
     <string name="password_strength_good">good</string>
     <string name="password_strength_strong">strong</string>
     <string name="password_strength_very_strong">very strong</string>
+    <string name="R.string.autofill_no_inputs">No suitable inputs were found for SPHINX AutoFill</string>
 </resources>

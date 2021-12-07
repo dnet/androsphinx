@@ -34,6 +34,10 @@ class SphinxAutofillService : AutofillService() {
             callback.onFailure(getString(R.string.autofill_no_domain_failure))
         } else {
             val ids = (result.usernames union result.passwords).toTypedArray()
+            if (ids.isEmpty()) {
+                callback.onFailure(getString(R.string.R_string_autofill_no_inputs))
+                return
+            }
             val authIntent = Intent(this, AccountsActivity::class.java).apply {
                 action = Intent.ACTION_SEARCH
                 putExtra(EXTRA_ACCOUNTS_AUTOFILL, true)
