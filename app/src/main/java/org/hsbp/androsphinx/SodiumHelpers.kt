@@ -66,6 +66,8 @@ inline class Ed25519PrivateKey(val key: ByteArray) {
         }
 }
 
+private val VERSION: ByteArray = byteArrayOf(0)
+
 inline class SecretBoxKey(private val key: ByteArray) {
     companion object {
         fun fromByteArray(value: ByteArray): SecretBoxKey {
@@ -76,12 +78,13 @@ inline class SecretBoxKey(private val key: ByteArray) {
 
     fun encrypt(plainText: ByteArray): ByteArray {
         require(key.size == CRYPTO_SECRETBOX_XSALSA20POLY1305_KEYBYTES) { "Invalid key size" }
-        return Sodium.cryptoSecretboxEasy(key, plainText)
+        return VERSION + Sodium.cryptoSecretboxEasy(key, plainText)
     }
 
-    fun decrypt(input: ByteArray): ByteArray {
+    fun decrypt(input: ByteArray): Pair<Byte, ByteArray> {
         require(key.size == CRYPTO_SECRETBOX_XSALSA20POLY1305_KEYBYTES) { "Invalid key size" }
         require(input.size > CRYPTO_SECRETBOX_NONCEBYTES) { "Invalid input size" }
-        return Sodium.cryptoSecretboxOpenEasy(key, input) ?: throw SodiumException("Cannot open secretBox")
+        val plaintext = Sodium.cryptoSecretboxOpenEasy(key, input) ?: throw SodiumException("Cannot open secretBox")
+        return Pair(plaintext[0], plaintext.sliceArray(1 until plaintext.size))
     }
 }

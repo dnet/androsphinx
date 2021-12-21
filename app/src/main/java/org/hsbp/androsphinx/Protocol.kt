@@ -46,7 +46,7 @@ class Protocol {
                 val newRwd = if (requiresAuth) challenge.finish(hostId, sis) else oldRwd
 
                 val (rule, size) = if (createRule == null) {
-                    val ruleBytes = cs.getSealKey().decrypt(sis.readExactly(ENCRYPTED_RULE_LENGTH))
+                    val (version, ruleBytes) = cs.getSealKey().decrypt(sis.readExactly(ENCRYPTED_RULE_LENGTH))
                     val combined =
                         ByteBuffer.wrap(ruleBytes).order(ByteOrder.BIG_ENDIAN).getShort()
                             .toInt()
@@ -179,7 +179,8 @@ private fun receiveUsernameList(socket: Socket, key: SecretBoxKey): Set<String> 
     if (length == 0) return emptySet()
     val blob = source.readExactly(length)
     if (blob.equalsString("fail")) throw Protocol.ServerFailureException()
-    return String(key.decrypt(blob)).split('\u0000').toSortedSet()
+    val (version, decrypted) = key.decrypt(blob)
+    return String(decrypted).split('\u0000').toSortedSet()
 }
 
 @Suppress("UsePropertyAccessSyntax")
