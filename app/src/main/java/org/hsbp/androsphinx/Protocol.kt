@@ -5,13 +5,12 @@ package org.hsbp.androsphinx
 
 import java.io.InputStream
 import java.lang.RuntimeException
+import java.math.BigInteger
 import java.net.Socket
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import javax.net.ssl.SSLSocketFactory
 
-const val SIZE_MASK: Int = 0x7F
-const val RULE_SHIFT: Int = 7
 const val RULE_BYTES_LENGTH: Int = 2
 const val AUTH_NONCE_BYTES: Int = 32
 const val ENCRYPTED_RULE_LENGTH: Int = CRYPTO_SECRETBOX_XSALSA20POLY1305_NONCEBYTES + CRYPTO_SECRETBOX_XSALSA20POLY1305_MACBYTES + RULE_BYTES_LENGTH
@@ -38,32 +37,28 @@ class Protocol {
 
         @Suppress("UsePropertyAccessSyntax")
         fun execute(realm: Realm, password: CharArray, cs: CredentialStore, callback: PasswordCallback,
-                    createRule: Pair<Set<CharacterClass>, Int>? = null) {
+                    createRule: Rule? = null) {
             val hostId = realm.hash(cs)
 
             val derived = connect(cs, password, hostId) { s, challenge, oldRwd ->
                 val sis = s.getInputStream()
                 val newRwd = if (requiresAuth) challenge.finish(hostId, sis) else oldRwd
 
-                val (rule, size) = if (createRule == null) {
+                val rule = if (createRule == null) {
                     val (version, ruleBytes) = cs.getSealKey().decrypt(sis.readExactly(ENCRYPTED_RULE_LENGTH))
-                    val combined =
-                        ByteBuffer.wrap(ruleBytes).order(ByteOrder.BIG_ENDIAN).getShort()
-                            .toInt()
-                    val size = combined and SIZE_MASK
-                    val rule = CharacterClass.parse((combined shr RULE_SHIFT).toByte())
-                    rule to size
+                    Rule.parse(ruleBytes)
                 } else createRule
 
                 if (writeRule) {
-                    sendRule(s, rule, size, cs.getSealKey(), cs.getSignKey(hostId, newRwd))
+                    sendRule(s, rule, cs.getSealKey(), cs.getSignKey(hostId, newRwd))
                 }
 
                 if (createRule != null) {
                     updateUserList(s, cs, realm) { users -> users + realm.username }
                 }
 
-                CharacterClass.derive(Context.PASSWORD.foldHash(newRwd), rule, size)
+                val rwd = BigInteger(Context.PASSWORD.foldHash(newRwd)).xor(rule.xorMask)
+                CharacterClass.derive(rwd, rule.charClasses, rule.size.toInt(), rule.symbols)
             }
 
             callback.passwordReceived(derived)
@@ -95,7 +90,15 @@ class Protocol {
         fun create(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
                    cs: CredentialStore, callback: PasswordCallback, size: Int = 0) {
             require(charClasses.isNotEmpty()) { "At least one character class must be allowed." }
-            Command.CREATE.execute(realm, password, cs, callback, charClasses to size)
+            val symbols = if (charClasses.contains(CharacterClass.SYMBOLS)) SYMBOL_SET.toSet() else emptySet() // TODO allow fine-grain control
+            val checkDigit = calculateCheckDigit() // TODO
+            val xorMask = BigInteger.ZERO // TODO add support for non-zero xorMask creation
+            val rule = Rule(charClasses, symbols, size.toBigInteger(), checkDigit, xorMask)
+            Command.CREATE.execute(realm, password, cs, callback, rule)
+        }
+
+        private fun calculateCheckDigit(): BigInteger {
+            return BigInteger.ZERO // TODO
         }
 
         fun get(password: CharArray, realm: Realm, cs: CredentialStore, callback: PasswordCallback) {
@@ -165,10 +168,8 @@ private fun updateUserList(socket: Socket, cs: Protocol.CredentialStore, realm: 
 fun Sphinx.Challenge.finish(salt: ByteArray, stream: InputStream): ByteArray =
     finish(salt, stream.readExactly(DECAF_255_SER_BYTES)) ?: throw Protocol.ServerFailureException()
 
-fun sendRule(socket: Socket, charClasses: Set<CharacterClass>, size: Int, sealKey: SecretBoxKey, signKey: Ed25519PrivateKey) {
-    val rule = (CharacterClass.serialize(charClasses).toInt() shl RULE_SHIFT) or (size and SIZE_MASK)
-    val ruleBytes = ByteBuffer.allocate(RULE_BYTES_LENGTH).order(ByteOrder.BIG_ENDIAN).putShort(rule.toShort()).array()
-    val ruleCipherText = sealKey.encrypt(ruleBytes)
+fun sendRule(socket: Socket, rule: Rule, sealKey: SecretBoxKey, signKey: Ed25519PrivateKey) {
+    val ruleCipherText = sealKey.encrypt(rule.serialize())
     val msg = signKey.publicKey + ruleCipherText
     socket.getOutputStream().write(msg + signKey.sign(msg))
 }

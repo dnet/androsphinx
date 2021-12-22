@@ -103,7 +103,7 @@ class ExampleInstrumentedTest {
         assertNotNull(callback.gotPassword)
         val pw = callback.gotPassword!!
         assertEquals(size, pw.size)
-        assert(pw.all { pwChar -> charClasses.any { it.range.contains(pwChar) } })
+        assert(pw.all { pwChar -> charClasses.any { it.range?.contains(pwChar) ?: false } })
         val userList = Protocol.list(hostname, cs)
         assertEquals(1, userList.size)
         assert(userList.contains(username))

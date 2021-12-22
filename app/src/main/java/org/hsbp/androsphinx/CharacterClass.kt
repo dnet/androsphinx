@@ -3,6 +3,7 @@
 
 package org.hsbp.androsphinx
 
+import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
@@ -10,48 +11,43 @@ import kotlin.experimental.and
 import kotlin.experimental.or
 import kotlin.math.log
 
-enum class CharacterClass(private val bit: Byte, internal val range: Set<Char>, val description: Int) {
-    UPPER(bit = 1, range = CharRange('A', 'Z').toSet(), description = R.string.character_class_upper),
-    LOWER(bit = 2, range = CharRange('a', 'z').toSet(), description = R.string.character_class_lower),
-    SYMBOLS(bit = 4, range = CharRange(' ', '/') union CharRange(':', '@') union
-            CharRange('[', '`') union CharRange('{', '~'), description = R.string.character_class_symbols),
-    DIGITS(bit = 8, range = CharRange('0', '9').toSet(), description = R.string.character_class_digits);
+enum class CharacterClass(private val bit: Int, internal val range: Set<Char>?, val description: Int) {
+    UPPER(bit = 0, range = CharRange('A', 'Z').toSet(), description = R.string.character_class_upper),
+    LOWER(bit = 1, range = CharRange('a', 'z').toSet(), description = R.string.character_class_lower),
+    SYMBOLS(bit = -1, range = null, description = R.string.character_class_symbols), // UI only, never encoded
+    DIGITS(bit = 2, range = CharRange('0', '9').toSet(), description = R.string.character_class_digits);
 
     companion object {
-        fun serialize(values: Set<CharacterClass>): Byte {
-            return values.fold(0.toByte()) { acc, cc -> acc or cc.bit }
+        fun serialize(values: Set<CharacterClass>): BigInteger {
+            return values.filter { it.range != null }.fold(BigInteger.ZERO) { acc, cc -> acc.setBit(cc.bit) }
         }
 
-        fun parse(serialized: Byte): Set<CharacterClass> =
+        fun parse(serialized: BigInteger): Set<CharacterClass> =
             values().filterTo(EnumSet.noneOf(CharacterClass::class.java)) {
-                it.bit and serialized == it.bit }
+                it.range != null && serialized.testBit(it.bit)
+            }
 
-        fun derive(rwd: ByteArray, rule: Set<CharacterClass>, size: Int): CharArray {
+        fun derive(rwd: BigInteger, rule: Set<CharacterClass>, size: Int, syms: Set<Char> = SYMBOL_SET.toSet()): CharArray {
             require(rule.isNotEmpty()) { "At least one character class must be allowed." }
-            val order = arrayOf(SYMBOLS, UPPER, LOWER, DIGITS)
-            val chars = order.filter(rule::contains).flatMap { it.range.sorted() }.toList()
-            val password = encode(rwd, chars)
+            val order = arrayOf(UPPER, LOWER, DIGITS)
+            val chars = order.filter(rule::contains).flatMap { it.range!!.sorted() }.toList() + syms.sorted()
+            val password = encode(rwd, chars, size)
             return if (size > 0) subArrayWithCleaning(password, size) else password
         }
 
-        private fun encode(raw: ByteArray, chars: List<Char>): CharArray {
-            val l = raw.size
-            val r = l.rem(4)
-            val input = if (r == 0) raw else raw + ByteArray(r) { 0 }
-            val ib = ByteBuffer.wrap(input).order(ByteOrder.BIG_ENDIAN).asIntBuffer()
-            val charSize = chars.size.toLong()
-            val outFact = log(0x100000000.toDouble(), charSize.toDouble()).toInt() + 1
-            val out = CharArray(outFact * ib.capacity())
-            var index = 0
-            while (ib.hasRemaining()) {
-                var word = ib.get().toLong() and 0xFFFFFFFF
-                repeat(outFact) {
-                    out[index++] = chars[word.rem(charSize).toInt()]
-                    word /= charSize
-                }
+        private fun encode(raw: BigInteger, chars: List<Char>, size: Int): CharArray {
+            val result = mutableListOf<Char>()
+            var v = raw
+            val divisor = chars.size.toBigInteger()
+            while ((size > 0 && result.size < size) || (size == 0 && v != BigInteger.ZERO)) {
+                val divMod = v.divideAndRemainder(divisor)
+                v = divMod[0]
+                result.add(chars[divMod[1].toInt()])
             }
-            val olen = (if (r == 0) 0 else r + 1) + l / 4 * outFact
-            return subArrayWithCleaning(out, olen)
+            val password = result.toCharArray()
+            password.reverse()
+            result.forEachIndexed { index, _ -> result[index] = '\u0000' }
+            return password
         }
 
         private fun subArrayWithCleaning(input: CharArray, size: Int): CharArray {
