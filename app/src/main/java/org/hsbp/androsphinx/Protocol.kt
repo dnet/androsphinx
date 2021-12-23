@@ -57,7 +57,7 @@ class Protocol {
                     updateUserList(s, cs, realm) { users -> users + realm.username }
                 }
 
-                val rwd = BigInteger(Context.PASSWORD.foldHash(newRwd)).xor(rule.xorMask)
+                val rwd = BigInteger(POSITIVE, Context.PASSWORD.foldHash(newRwd)).xor(rule.xorMask)
                 CharacterClass.derive(rwd, rule.charClasses, rule.size.toInt(), rule.symbols)
             }
 
