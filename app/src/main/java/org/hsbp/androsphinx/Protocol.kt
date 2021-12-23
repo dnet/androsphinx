@@ -144,7 +144,7 @@ private fun updateUserList(socket: Socket, cs: Protocol.CredentialStore, realm: 
     val hostId = realm.withoutUser.hash(cs)
 
     val sealKey = cs.getSealKey()
-    val hostSk = cs.getSignKey(hostId)
+    val hostSk = cs.getSignKey(hostId, ByteArray(0))
 
     sos.write(hostId + hostSk.sign(hostId))
 
