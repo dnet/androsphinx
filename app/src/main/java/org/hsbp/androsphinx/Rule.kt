@@ -2,7 +2,7 @@ package org.hsbp.androsphinx
 
 import java.math.BigInteger
 
-const val SYMBOL_SET = "' !\"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~"
+const val SYMBOL_SET = " !\"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~"
 const val POSITIVE: Int = 1
 const val RULE_SHIFT: Int = 7
 const val XOR_MASK_BYTES: Int = 32
