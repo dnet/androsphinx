@@ -20,7 +20,11 @@ data class Rule(val charClasses: Set<CharacterClass>, val symbols: Set<Char>,
         val withSymbols = symbolIndices.fold(r) { acc, pos -> acc.setBit(pos) }
         val withCheckDigit = withSymbols.or(checkDigit!!.and(CHECK_DIGIT_MASK).shiftLeft(CHECK_DIGIT_SHIFT))
         val blob = withCheckDigit.shiftLeft(XOR_MASK_BYTES * 8).or(xorMask).toByteArray()
-        return if (blob.size < RULE_BYTES_LENGTH) ByteArray(RULE_BYTES_LENGTH - blob.size) { 0 } + blob else blob
+        return when {
+            blob.size < RULE_BYTES_LENGTH -> ByteArray(RULE_BYTES_LENGTH - blob.size) { 0 } + blob
+            blob.size > RULE_BYTES_LENGTH -> blob.sliceArray(blob.size - RULE_BYTES_LENGTH until blob.size)
+            else -> blob
+        }
     }
 
     fun withCheckDigit(newCheckDigit: BigInteger): Rule =
