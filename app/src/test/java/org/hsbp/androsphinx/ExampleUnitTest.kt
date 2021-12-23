@@ -60,10 +60,14 @@ class ExampleUnitTest {
     fun ruleSerializationTest() {
         val upperLower20 = Rule(setOf(CharacterClass.UPPER, CharacterClass.LOWER),
             emptySet(), 20.toBigInteger(), BigInteger.ZERO, BigInteger.ZERO)
-        assertEquals(Rule.parse(upperLower20.serialize()), upperLower20)
+        val upperLower20bytes = upperLower20.serialize()
+        assertEquals(RULE_BYTES_LENGTH, upperLower20bytes.size)
+        assertEquals(Rule.parse(upperLower20bytes), upperLower20)
         val upperLowerSelectSymbols20xor = Rule(setOf(CharacterClass.UPPER, CharacterClass.LOWER),
             DERIVED_ULSD_20_SYMBOLS.toSet(), 20.toBigInteger(), BigInteger(TEST_XOR_MASK, 16), 23.toBigInteger())
-        assertEquals(Rule.parse(upperLowerSelectSymbols20xor.serialize()), upperLowerSelectSymbols20xor)
+        val upperLowerSelectSymbols20xorBytes = upperLowerSelectSymbols20xor.serialize()
+        assertEquals(RULE_BYTES_LENGTH, upperLowerSelectSymbols20xorBytes.size)
+        assertEquals(Rule.parse(upperLowerSelectSymbols20xorBytes), upperLowerSelectSymbols20xor)
         val upperLowerSelectSymbols20xorS = Rule(setOf(CharacterClass.UPPER, CharacterClass.LOWER, CharacterClass.SYMBOLS),
             DERIVED_ULSD_20_SYMBOLS.toSet(), 20.toBigInteger(), BigInteger(TEST_XOR_MASK, 16), 23.toBigInteger())
         assertEquals(Rule.parse(upperLowerSelectSymbols20xorS.serialize()), upperLowerSelectSymbols20xor)

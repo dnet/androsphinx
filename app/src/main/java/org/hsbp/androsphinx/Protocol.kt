@@ -11,7 +11,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import javax.net.ssl.SSLSocketFactory
 
-const val RULE_BYTES_LENGTH: Int = 2
+const val RULE_BYTES_LENGTH: Int = 39
 const val AUTH_NONCE_BYTES: Int = 32
 const val ENCRYPTED_RULE_LENGTH: Int = CRYPTO_SECRETBOX_XSALSA20POLY1305_NONCEBYTES + CRYPTO_SECRETBOX_XSALSA20POLY1305_MACBYTES + RULE_BYTES_LENGTH
 
