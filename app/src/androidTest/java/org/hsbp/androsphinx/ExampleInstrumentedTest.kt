@@ -45,6 +45,12 @@ class ExampleInstrumentedTest {
     }
 
     @Test
+    fun checkDigitCalcTest() {
+        val h = Protocol.calculateCheckDigit("bar".toByteArray())
+        assertEquals(h.toLong(), 0x86)
+    }
+
+    @Test
     fun equihashBasicTest() {
         val n = 102
         val k = 5

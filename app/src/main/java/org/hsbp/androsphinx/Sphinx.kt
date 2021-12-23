@@ -20,7 +20,8 @@ const val CRYPTO_SECRETBOX_XSALSA20POLY1305_MACBYTES: Int = 16
 
 class Sodium {
     companion object {
-        @JvmStatic external fun genericHash(message: ByteArray, salt: ByteArray): ByteArray
+        @JvmStatic external fun genericHash(message: ByteArray, salt: ByteArray,
+                                            outputLength: Int = CRYPTO_GENERICHASH_BYTES): ByteArray
         @JvmStatic external fun randomBytes(amount: Int): ByteArray
         @JvmStatic external fun cryptoSignSeedKeypair(seed: ByteArray): ByteArray
         @JvmStatic external fun cryptoSignEd25519SkToPk(sk: ByteArray): ByteArray

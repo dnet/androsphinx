@@ -47,7 +47,7 @@ class Protocol {
                 val rule = if (createRule == null) {
                     val (version, ruleBytes) = cs.getSealKey().decrypt(sis.readExactly(ENCRYPTED_RULE_LENGTH))
                     Rule.parse(ruleBytes)
-                } else createRule
+                } else createRule.withCheckDigit(calculateCheckDigit(oldRwd))
 
                 if (writeRule) {
                     sendRule(s, rule, cs.getSealKey(), cs.getSignKey(hostId, newRwd))
@@ -91,14 +91,13 @@ class Protocol {
                    cs: CredentialStore, callback: PasswordCallback, size: Int = 0) {
             require(charClasses.isNotEmpty()) { "At least one character class must be allowed." }
             val symbols = if (charClasses.contains(CharacterClass.SYMBOLS)) SYMBOL_SET.toSet() else emptySet() // TODO allow fine-grain control
-            val checkDigit = calculateCheckDigit() // TODO
             val xorMask = BigInteger.ZERO // TODO add support for non-zero xorMask creation
-            val rule = Rule(charClasses, symbols, size.toBigInteger(), checkDigit, xorMask)
+            val rule = Rule(charClasses, symbols, size.toBigInteger(), xorMask)
             Command.CREATE.execute(realm, password, cs, callback, rule)
         }
 
-        private fun calculateCheckDigit(): BigInteger {
-            return BigInteger.ZERO // TODO
+        fun calculateCheckDigit(rwd: ByteArray): BigInteger {
+            return BigInteger(POSITIVE, Context.CHECK_DIGIT.foldHash(rwd))
         }
 
         fun get(password: CharArray, realm: Realm, cs: CredentialStore, callback: PasswordCallback) {

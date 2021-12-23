@@ -11,14 +11,15 @@ class SodiumException(message: String) : RuntimeException(message)
 
 const val MASTER_KEY_BYTES = 32
 
-enum class Context(private val value: String) {
+enum class Context(private val value: String, private val hashLength: Int = CRYPTO_GENERICHASH_BYTES) {
     SIGNING("sphinx signing key"),
     ENCRYPTION("sphinx encryption key"),
     SALT("sphinx host salt"),
+    CHECK_DIGIT("sphinx check digit context", hashLength = 1),
     PASSWORD("sphinx password context");
 
     fun foldHash(vararg messages: ByteArray): ByteArray =
-        messages.fold(value.toByteArray(), ::genericHash)
+        messages.fold(value.toByteArray()) { acc, message -> genericHash(acc, message, hashLength) }
 }
 
 inline class MasterKey(private val bytes: ByteArray) {
