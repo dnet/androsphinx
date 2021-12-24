@@ -69,23 +69,25 @@ inline class Ed25519PrivateKey(val key: ByteArray) {
 
 private val VERSION: ByteArray = byteArrayOf(0)
 
-inline class SecretBoxKey(private val key: ByteArray) {
+inline class AeadKey(private val key: ByteArray) {
     companion object {
-        fun fromByteArray(value: ByteArray): SecretBoxKey {
-            require(value.size == CRYPTO_SECRETBOX_XSALSA20POLY1305_KEYBYTES) { "Invalid key size" }
-            return SecretBoxKey(value)
+        fun fromByteArray(value: ByteArray): AeadKey {
+            require(value.size == CRYPTO_AEAD_XCHACHA20POLY1305_IETF_KEYBYTES) { "Invalid key size" }
+            return AeadKey(value)
         }
     }
 
     fun encrypt(plainText: ByteArray): ByteArray {
-        require(key.size == CRYPTO_SECRETBOX_XSALSA20POLY1305_KEYBYTES) { "Invalid key size" }
-        return VERSION + Sodium.cryptoSecretboxEasy(key, plainText)
+        require(key.size == CRYPTO_AEAD_XCHACHA20POLY1305_IETF_KEYBYTES) { "Invalid key size" }
+        return VERSION + Sodium.cryptoAeadXchachaPoly1305IetfEasy(plainText, VERSION, key)!!
     }
 
     fun decrypt(input: ByteArray): Pair<Byte, ByteArray> {
-        require(key.size == CRYPTO_SECRETBOX_XSALSA20POLY1305_KEYBYTES) { "Invalid key size" }
-        require(input.size > CRYPTO_SECRETBOX_NONCEBYTES) { "Invalid input size" }
-        val plaintext = Sodium.cryptoSecretboxOpenEasy(key, input) ?: throw SodiumException("Cannot open secretBox")
-        return Pair(plaintext[0], plaintext.sliceArray(1 until plaintext.size))
+        require(key.size == CRYPTO_AEAD_XCHACHA20POLY1305_IETF_KEYBYTES) { "Invalid key size" }
+        require(input.size > CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES) { "Invalid input size" }
+        val ciphertext = input.sliceArray(1 until input.size)
+        val version = input[0]
+        val plaintext = Sodium.cryptoAeadXchachaPoly1305IetfOpenEasy(ciphertext, byteArrayOf(version), key) ?: throw SodiumException("Cannot decrypt AEAD")
+        return version to plaintext
     }
 }

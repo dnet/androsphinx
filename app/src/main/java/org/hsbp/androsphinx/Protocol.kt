@@ -13,7 +13,7 @@ import javax.net.ssl.SSLSocketFactory
 
 const val RULE_BYTES_LENGTH: Int = 38
 const val AUTH_NONCE_BYTES: Int = 32
-const val ENCRYPTED_RULE_LENGTH: Int = CRYPTO_SECRETBOX_XSALSA20POLY1305_NONCEBYTES + CRYPTO_SECRETBOX_XSALSA20POLY1305_MACBYTES + RULE_BYTES_LENGTH
+const val ENCRYPTED_RULE_LENGTH: Int = CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES + CRYPTO_AEAD_XCHACHA20POLY1305_IETF_ABYTES + RULE_BYTES_LENGTH
 
 class Protocol {
     enum class Command(val code: Byte, val requiresAuth: Boolean = true, val writeRule: Boolean = false) {
@@ -167,13 +167,13 @@ private fun updateUserList(socket: Socket, cs: Protocol.CredentialStore, realm: 
 fun Sphinx.Challenge.finish(salt: ByteArray, stream: InputStream): ByteArray =
     finish(salt, stream.readExactly(DECAF_255_SER_BYTES)) ?: throw Protocol.ServerFailureException()
 
-fun sendRule(socket: Socket, rule: Rule, sealKey: SecretBoxKey, signKey: Ed25519PrivateKey) {
+fun sendRule(socket: Socket, rule: Rule, sealKey: AeadKey, signKey: Ed25519PrivateKey) {
     val ruleCipherText = sealKey.encrypt(rule.serialize())
     val msg = signKey.publicKey + ruleCipherText
     socket.getOutputStream().write(msg + signKey.sign(msg))
 }
 
-private fun receiveUsernameList(socket: Socket, key: SecretBoxKey): Set<String> {
+private fun receiveUsernameList(socket: Socket, key: AeadKey): Set<String> {
     val source = socket.getInputStream()
     val length = source.readBE16()
     if (length == 0) return emptySet()
@@ -199,8 +199,8 @@ private fun InputStream.readExactly(length: Int): ByteArray {
 fun Protocol.CredentialStore.getSignKey(id: ByteArray, rwd: ByteArray? = null): Ed25519PrivateKey =
     Ed25519PrivateKey.fromSeed(key.foldHash(Context.SIGNING, id, if (rwdKeys) rwd else null))
 
-fun Protocol.CredentialStore.getSealKey(): SecretBoxKey =
-    SecretBoxKey.fromByteArray(key.foldHash(Context.ENCRYPTION))
+fun Protocol.CredentialStore.getSealKey(): AeadKey =
+    AeadKey.fromByteArray(key.foldHash(Context.ENCRYPTION))
 
 fun Protocol.CredentialStore.auth(socket: Socket, hostId: ByteArray, rwd: ByteArray? = null) {
     val nonce = socket.getInputStream().readExactly(AUTH_NONCE_BYTES)

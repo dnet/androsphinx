@@ -13,10 +13,9 @@ const val CRYPTO_GENERICHASH_BYTES: Int = 32
 const val CRYPTO_SIGN_SECRETKEYBYTES: Int = 64
 const val CRYPTO_SIGN_PUBLICKEYBYTES: Int = 32
 const val CRYPTO_SIGN_SEEDBYTES: Int = 32
-const val CRYPTO_SECRETBOX_NONCEBYTES: Int = 24
-const val CRYPTO_SECRETBOX_XSALSA20POLY1305_KEYBYTES: Int = 32
-const val CRYPTO_SECRETBOX_XSALSA20POLY1305_NONCEBYTES: Int = 24
-const val CRYPTO_SECRETBOX_XSALSA20POLY1305_MACBYTES: Int = 16
+const val CRYPTO_AEAD_XCHACHA20POLY1305_IETF_KEYBYTES: Int = 32
+const val CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES: Int = 24
+const val CRYPTO_AEAD_XCHACHA20POLY1305_IETF_ABYTES: Int = 16
 
 class Sodium {
     companion object {
@@ -26,8 +25,8 @@ class Sodium {
         @JvmStatic external fun cryptoSignSeedKeypair(seed: ByteArray): ByteArray
         @JvmStatic external fun cryptoSignEd25519SkToPk(sk: ByteArray): ByteArray
         @JvmStatic external fun cryptoSignDetached(sk: ByteArray, msg: ByteArray): ByteArray
-        @JvmStatic external fun cryptoSecretboxEasy(key: ByteArray, msg: ByteArray): ByteArray
-        @JvmStatic external fun cryptoSecretboxOpenEasy(key: ByteArray, msg: ByteArray): ByteArray?
+        @JvmStatic external fun cryptoAeadXchachaPoly1305IetfEasy(msg: ByteArray, ad: ByteArray, key: ByteArray): ByteArray?
+        @JvmStatic external fun cryptoAeadXchachaPoly1305IetfOpenEasy(msg: ByteArray, ad: ByteArray, key: ByteArray): ByteArray?
     }
 }
 

@@ -51,6 +51,28 @@ class ExampleInstrumentedTest {
     }
 
     @Test
+    fun aeadTest() {
+        val cs = MockCredentialStore()
+        val key = cs.getSealKey()
+        val plaintext = Base64.decode(EXPECTED_BASIC_TEST, Base64.DEFAULT)
+        val expectedVersion = 0.toByte()
+        val ciphertext = key.encrypt(plaintext)
+        assertEquals(expectedVersion, ciphertext[0])
+        val (version, decrypted) = key.decrypt(ciphertext)
+        assertEquals(expectedVersion, version)
+        assertArrayEquals(plaintext, decrypted)
+        ciphertext[0] = 1
+        try {
+            key.decrypt(ciphertext)
+            fail("SodiumException should've been thrown")
+        } catch (e: SodiumException) {
+            // success
+        }
+        val expectedLength = plaintext.size + 1 + CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES + CRYPTO_AEAD_XCHACHA20POLY1305_IETF_ABYTES
+        assertEquals(expectedLength, ciphertext.size)
+    }
+
+    @Test
     fun equihashBasicTest() {
         val n = 102
         val k = 5
