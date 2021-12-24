@@ -47,24 +47,6 @@ class Protocol {
             }
         }
 
-        private fun performRateLimit(cs: CredentialStore, request: ByteArray): Socket {
-            val challenge = cs.createSocket().use { s ->
-                s.getOutputStream().write(byteArrayOf(CHALLENGE_CREATE) + request)
-                s.getInputStream().readExactly(1 + 1 + 8 + 32)
-            }
-            val n = challenge[0]
-            val k = challenge[1]
-            val seed = challenge + request
-            val solution = Equihash.solve(n.toInt(), k.toInt(), seed)!!
-            val socket = cs.createSocket()
-            socket.getOutputStream().apply {
-                write(byteArrayOf(CHALLENGE_VERIFY) + challenge)
-                write(request)
-                write(solution)
-            }
-            return socket
-        }
-
         @Suppress("UsePropertyAccessSyntax")
         fun execute(realm: Realm, password: CharArray, cs: CredentialStore, callback: PasswordCallback,
                     createRule: Rule? = null) {
@@ -166,6 +148,24 @@ class Protocol {
             }
         }
     }
+}
+
+private fun performRateLimit(cs: Protocol.CredentialStore, request: ByteArray): Socket {
+    val challenge = cs.createSocket().use { s ->
+        s.getOutputStream().write(byteArrayOf(CHALLENGE_CREATE) + request)
+        s.getInputStream().readExactly(1 + 1 + 8 + 32)
+    }
+    val n = challenge[0]
+    val k = challenge[1]
+    val seed = challenge + request
+    val solution = Equihash.solve(n.toInt(), k.toInt(), seed)!!
+    val socket = cs.createSocket()
+    socket.getOutputStream().apply {
+        write(byteArrayOf(CHALLENGE_VERIFY) + challenge)
+        write(request)
+        write(solution)
+    }
+    return socket
 }
 
 private fun updateUserList(socket: Socket, cs: Protocol.CredentialStore, realm: Protocol.Realm,
