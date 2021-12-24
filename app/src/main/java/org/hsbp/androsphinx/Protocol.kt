@@ -3,6 +3,7 @@
 
 package org.hsbp.androsphinx
 
+import org.hsbp.equihash.Equihash
 import java.io.InputStream
 import java.lang.RuntimeException
 import java.math.BigInteger
@@ -13,28 +14,56 @@ import javax.net.ssl.SSLSocketFactory
 
 const val RULE_BYTES_LENGTH: Int = 38
 const val AUTH_NONCE_BYTES: Int = 32
+const val CHALLENGE_CREATE: Byte = 0x5a
+const val CHALLENGE_VERIFY: Byte = 0xa5.toByte()
 const val VERSION_LENGTH: Int = 1
 const val ENCRYPTED_RULE_LENGTH: Int = CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES + CRYPTO_AEAD_XCHACHA20POLY1305_IETF_ABYTES + RULE_BYTES_LENGTH + VERSION_LENGTH
 
 class Protocol {
-    enum class Command(val code: Byte, val requiresAuth: Boolean = true, val writeRule: Boolean = false) {
-        CREATE(0x00, requiresAuth = false, writeRule = true), READ(0x33), UNDO(0x55, writeRule = true),
+    enum class Command(val code: Byte, val requiresAuth: Boolean = true,
+                       val writeRule: Boolean = false, val rateLimit: Boolean = true) {
+        CREATE(0x00, requiresAuth = false, writeRule = true, rateLimit = false),
+        READ(0x33), UNDO(0x55, writeRule = true),
         GET(0x66, requiresAuth = false), COMMIT(0x99.toByte(), writeRule = true),
         CHANGE(0xAA.toByte()), WRITE(0xCC.toByte()), DELETE(0xFF.toByte());
 
-        fun <T> connect(cs: CredentialStore, password: CharArray, id: ByteArray, body: (Socket, Sphinx.Challenge, ByteArray) -> T): T =
-            cs.createSocket().use { socket ->
-                Sphinx.Challenge(password).use { challenge ->
-                    val message = ByteBuffer.allocate(DECAF_255_SER_BYTES + CRYPTO_GENERICHASH_BYTES + 1)
-                    message.put(code)
-                    message.put(id)
-                    message.put(challenge.challenge)
-                    socket.getOutputStream().write(message.array())
+        fun <T> connect(cs: CredentialStore, password: CharArray, id: ByteArray, body: (Socket, Sphinx.Challenge, ByteArray) -> T): T {
+            Sphinx.Challenge(password).use { challenge ->
+                val message = ByteBuffer.allocate(DECAF_255_SER_BYTES + CRYPTO_GENERICHASH_BYTES + 1)
+                message.put(code)
+                message.put(id)
+                message.put(challenge.challenge)
+                val request = message.array()
+                val s = if (rateLimit) {
+                    performRateLimit(cs, request)
+                } else {
+                    cs.createSocket().apply { getOutputStream().write(request) }
+                }
+                s.use { socket ->
                     val rwd = challenge.finish(id, socket.getInputStream())
                     if (requiresAuth) cs.auth(socket, id, rwd)
                     return body(socket, challenge, rwd)
                 }
             }
+        }
+
+        private fun performRateLimit(cs: CredentialStore, request: ByteArray): Socket {
+            val challenge = cs.createSocket().use { s ->
+                s.getOutputStream().write(byteArrayOf(CHALLENGE_CREATE) + request)
+                s.getInputStream().readExactly(1 + 1 + 8 + 32)
+            }
+            val n = challenge[0]
+            val k = challenge[1]
+            val seed = challenge + request
+            val solution = Equihash.solve(n.toInt(), k.toInt(), seed)!!
+            val socket = cs.createSocket()
+            socket.getOutputStream().apply {
+                write(byteArrayOf(CHALLENGE_VERIFY) + challenge)
+                write(request)
+                write(solution)
+            }
+            return socket
+        }
 
         @Suppress("UsePropertyAccessSyntax")
         fun execute(realm: Realm, password: CharArray, cs: CredentialStore, callback: PasswordCallback,
