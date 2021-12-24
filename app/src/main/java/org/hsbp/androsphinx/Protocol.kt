@@ -136,9 +136,8 @@ class Protocol {
 
         fun list(hostname: String, cs: CredentialStore): Set<String> {
             val hostId = Realm(hostname = hostname, username = "").hash(cs)
-
-            cs.createSocket().use { socket ->
-                socket.getOutputStream().write(byteArrayOf(Command.READ.code) + hostId)
+            val request = byteArrayOf(Command.READ.code) + hostId
+            performRateLimit(cs, request).use { socket ->
                 try {
                     cs.auth(socket, hostId)
                 } catch (e: ServerFailureException) {
