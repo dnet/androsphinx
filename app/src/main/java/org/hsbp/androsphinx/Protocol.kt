@@ -78,7 +78,7 @@ class Protocol {
     }
 
     data class Realm(val username: String, val hostname: String) {
-        fun hash(cs: CredentialStore) = org.hsbp.androsphinx.Sodium.genericHash("$username|$hostname".toByteArray(), cs.key.foldHash(Context.SALT))
+        fun hash(cs: CredentialStore) = Sodium.genericHash("$username|$hostname".toByteArray(), cs.key.foldHash(Context.SALT))
 
         val withoutUser: Realm
             get() = Realm(username = "", hostname = hostname)
