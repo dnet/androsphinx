@@ -13,7 +13,8 @@ import javax.net.ssl.SSLSocketFactory
 
 const val RULE_BYTES_LENGTH: Int = 38
 const val AUTH_NONCE_BYTES: Int = 32
-const val ENCRYPTED_RULE_LENGTH: Int = CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES + CRYPTO_AEAD_XCHACHA20POLY1305_IETF_ABYTES + RULE_BYTES_LENGTH
+const val VERSION_LENGTH: Int = 1
+const val ENCRYPTED_RULE_LENGTH: Int = CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES + CRYPTO_AEAD_XCHACHA20POLY1305_IETF_ABYTES + RULE_BYTES_LENGTH + VERSION_LENGTH
 
 class Protocol {
     enum class Command(val code: Byte, val requiresAuth: Boolean = true, val writeRule: Boolean = false) {
