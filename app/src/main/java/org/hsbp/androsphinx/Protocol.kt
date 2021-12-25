@@ -19,15 +19,20 @@ const val CHALLENGE_VERIFY: Byte = 0xa5.toByte()
 const val VERSION_LENGTH: Int = 1
 const val ENCRYPTED_RULE_LENGTH: Int = CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES + CRYPTO_AEAD_XCHACHA20POLY1305_IETF_ABYTES + RULE_BYTES_LENGTH + VERSION_LENGTH
 
+private val RESPONSE_OK = "ok".toByteArray()
+
 class Protocol {
     enum class Command(val code: Byte, val requiresAuth: Boolean = true,
-                       val writeRule: Boolean = false, val rateLimit: Boolean = true) {
-        CREATE(0x00, requiresAuth = false, writeRule = true, rateLimit = false),
-        READ(0x33), UNDO(0x55, writeRule = true),
-        GET(0x66, requiresAuth = false), COMMIT(0x99.toByte(), writeRule = true),
-        CHANGE(0xAA.toByte()), WRITE(0xCC.toByte()), DELETE(0xFF.toByte());
+                       val writeRule: Boolean = false, val rateLimit: Boolean = true,
+                       val appendUser: Boolean = false, val checkOK: Boolean = false) {
+        CREATE(0x00, requiresAuth = false, writeRule = true, rateLimit = false, appendUser = true),
+        READ(0x33), UNDO(0x55, checkOK = true),
+        GET(0x66, requiresAuth = false), COMMIT(0x99.toByte(), checkOK = true),
+        CHANGE(0xAA.toByte(), writeRule = true, checkOK = true),
+        WRITE(0xCC.toByte()), DELETE(0xFF.toByte());
 
-        fun <T> connect(cs: CredentialStore, password: CharArray, id: ByteArray, body: (Socket, Sphinx.Challenge, ByteArray) -> T): T {
+        fun <T> connect(cs: CredentialStore, password: CharArray, id: ByteArray,
+                        body: ((Socket, ByteArray) -> T)? = null): T? {
             Sphinx.Challenge(password).use { challenge ->
                 val message = ByteBuffer.allocate(DECAF_255_SER_BYTES + CRYPTO_GENERICHASH_BYTES + 1)
                 message.put(code)
@@ -40,32 +45,47 @@ class Protocol {
                     cs.createSocket().apply { getOutputStream().write(request) }
                 }
                 s.use { socket ->
-                    val rwd = challenge.finish(id, socket.getInputStream())
+                    val sis = socket.getInputStream()
+                    val rwd = challenge.finish(id, sis)
                     if (requiresAuth) cs.auth(socket, id, rwd)
-                    return body(socket, challenge, rwd)
+                    val result = body?.invoke(socket, rwd)
+                    if (checkOK) {
+                        if (!(sis.readExactly(RESPONSE_OK.size) contentEquals RESPONSE_OK)) {
+                            throw ServerFailureException()
+                        }
+                    }
+                    return result
                 }
             }
         }
 
-        @Suppress("UsePropertyAccessSyntax")
         fun execute(realm: Realm, password: CharArray, cs: CredentialStore, callback: PasswordCallback,
                     createRule: Rule? = null) {
             val hostId = realm.hash(cs)
+            val challenge = if (requiresAuth) Sphinx.Challenge(password.clone()) else null
 
-            val derived = connect(cs, password, hostId) { s, challenge, oldRwd ->
+            val derived = connect(cs, password, hostId) { s, oldRwd ->
                 val sis = s.getInputStream()
-                val newRwd = if (requiresAuth) challenge.finish(hostId, sis) else oldRwd
+                val newRwd = challenge?.use { c -> // TODO: "CHANGE" -> allow new pw
+                    s.getOutputStream().write(c.challenge)
+                    c.finish(hostId, sis)
+                } ?: oldRwd
 
                 val rule = if (createRule == null) {
                     val (version, ruleBytes) = cs.getSealKey().decrypt(sis.readExactly(ENCRYPTED_RULE_LENGTH))
-                    Rule.parse(ruleBytes)
-                } else createRule.withCheckDigit(calculateCheckDigit(oldRwd))
+                    Rule.parse(ruleBytes).apply {
+                        if (checkDigit != calculateCheckDigit(newRwd).and(CHECK_DIGIT_MASK)) {
+                            throw CheckDigitMismatchException()
+                        }
+                        callback.ruleReceived(this)
+                    }
+                } else createRule.withCheckDigit(calculateCheckDigit(newRwd))
 
                 if (writeRule) {
                     sendRule(s, rule, cs.getSealKey(), cs.getSignKey(hostId, newRwd))
                 }
 
-                if (createRule != null) {
+                if (appendUser) {
                     updateUserList(s, cs, realm) { users -> users + realm.username }
                 }
 
@@ -73,7 +93,7 @@ class Protocol {
                 CharacterClass.derive(rwd, rule.charClasses, rule.size.toInt(), rule.symbols)
             }
 
-            callback.passwordReceived(derived)
+            callback.passwordReceived(derived!!)
         }
     }
 
@@ -85,6 +105,7 @@ class Protocol {
     }
 
     class ServerFailureException : RuntimeException()
+    class CheckDigitMismatchException : RuntimeException()
 
     interface CredentialStore {
         val key: MasterKey
@@ -95,6 +116,7 @@ class Protocol {
 
     interface PasswordCallback {
         fun passwordReceived(password: CharArray)
+        fun ruleReceived(rule: Rule)
     }
 
     companion object {
@@ -116,20 +138,24 @@ class Protocol {
             Command.GET.execute(realm, password, cs, callback)
         }
 
-        fun change(password: CharArray, realm: Realm, cs: CredentialStore, callback: PasswordCallback) {
-            Command.CHANGE.execute(realm, password, cs, callback)
+        fun change(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
+                   cs: CredentialStore, callback: PasswordCallback, symbols: Set<Char>, size: Int = 0) {
+            require(charClasses.isNotEmpty()) { "At least one character class must be allowed." }
+            val xorMask = BigInteger.ZERO // TODO add support for non-zero xorMask creation
+            val rule = Rule(charClasses, symbols, size.toBigInteger(), xorMask)
+            Command.CHANGE.execute(realm, password, cs, callback, rule)
         }
 
-        fun commit(password: CharArray, realm: Realm, cs: CredentialStore, callback: PasswordCallback) {
-            Command.COMMIT.execute(realm, password, cs, callback)
+        fun commit(password: CharArray, realm: Realm, cs: CredentialStore) {
+            Command.COMMIT.connect<Void>(cs, password, realm.hash(cs))
         }
 
-        fun undo(password: CharArray, realm: Realm, cs: CredentialStore, callback: PasswordCallback) {
-            Command.UNDO.execute(realm, password, cs, callback)
+        fun undo(password: CharArray, realm: Realm, cs: CredentialStore) {
+            Command.UNDO.connect<Void>(cs, password, realm.hash(cs))
         }
 
         fun delete(password: CharArray, realm: Realm, cs: CredentialStore) {
-            Command.DELETE.connect(cs, password, realm.hash(cs)) { s, _, _ ->
+            Command.DELETE.connect(cs, password, realm.hash(cs)) { s, _ ->
                 updateUserList(s, cs, realm) { users -> if (users.isEmpty()) null else users - realm.username }
             }
         }

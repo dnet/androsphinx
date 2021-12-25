@@ -119,9 +119,14 @@ class ExampleInstrumentedTest {
         val size = 18
         val callback = object : Protocol.PasswordCallback {
             var gotPassword: CharArray? = null
+            var gotRule: Rule? = null
 
             override fun passwordReceived(password: CharArray) {
                 gotPassword = password
+            }
+
+            override fun ruleReceived(rule: Rule) {
+                gotRule = rule
             }
         }
 
@@ -146,10 +151,13 @@ class ExampleInstrumentedTest {
 
         Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
         assertArrayEquals(pw, callback.gotPassword)
+        val gr = callback.gotRule!!
+        assertEquals(gr.charClasses, charClasses)
+        assertEquals(gr.size.toInt(), size)
 
         callback.gotPassword = null
 
-        Protocol.change("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
+        Protocol.change("sphinxNetworkTestMasterPassword".toCharArray(), realm, charClasses, cs, callback, emptySet(), size)
         val pw2 = callback.gotPassword!!
         assertFalse(pw.contentEquals(pw2))
 
@@ -158,20 +166,14 @@ class ExampleInstrumentedTest {
         Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
         assertArrayEquals(pw, callback.gotPassword)
 
-        callback.gotPassword = null
-
-        Protocol.commit("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
-        assertArrayEquals(pw2, callback.gotPassword)
+        Protocol.commit("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
 
         callback.gotPassword = null
 
         Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
         assertArrayEquals(pw2, callback.gotPassword)
 
-        callback.gotPassword = null
-
-        Protocol.undo("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
-        assertArrayEquals(pw, callback.gotPassword)
+        Protocol.undo("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
 
         callback.gotPassword = null
 
@@ -213,8 +215,8 @@ private fun processCommand(cmd: String, pw: PrintWriter, cs: Protocol.Credential
     if (cmd == "help") {
         pw.println("Available commands:")
         pw.println()
-        pw.println("create <master password> <user> <site> [u][l][d][s] [<size>]")
-        pw.println("<get|change|commit|delete> <master password> <user> <site>")
+        pw.println("<create|change> <master password> <user> <site> [u][l][d][s] [<size>]")
+        pw.println("<get|commit|delete> <master password> <user> <site>")
         pw.println("list <site>")
         return
     }
@@ -229,11 +231,13 @@ private fun processCommand(cmd: String, pw: PrintWriter, cs: Protocol.Credential
         override fun passwordReceived(password: CharArray) {
             pw.println(String(password))
         }
+
+        override fun ruleReceived(rule: Rule) {}
     }
 
     try {
         when (parts[0]) {
-            "create" -> {
+            "create", "change" -> {
                 if (parts.size < 5) {
                     pw.println("Not enough arguments")
                 }
@@ -243,23 +247,27 @@ private fun processCommand(cmd: String, pw: PrintWriter, cs: Protocol.Credential
                     val cc = CharacterClass.values().filterTo(
                         EnumSet.noneOf(CharacterClass::class.java)
                     ) { it.name[0].toLowerCase() in ccs }
-                    Protocol.create(
-                        parts[1].toCharArray(), Protocol.Realm(parts[2], parts[3]),
-                        cc, cs, passwordCallback, size
-                    )
+                    val realm = Protocol.Realm(parts[2], parts[3])
+                    if (parts[0] == "create") {
+                        Protocol.create(
+                            parts[1].toCharArray(), realm, cc, cs, passwordCallback, size)
+                    } else {
+                        val symbols = if ("s" in ccs) SYMBOL_SET.toSet() else emptySet()
+                        Protocol.change(
+                            parts[1].toCharArray(), realm, cc, cs, passwordCallback, symbols, size)
+                    }
                 } catch (e: NumberFormatException) {
                     pw.println("Invalid size")
                 }
             }
-            "get", "change", "commit", "delete" -> {
+            "get", "commit", "delete" -> {
                 if (parts.size < 4) {
                     pw.println("Not enough arguments")
                 }
                 val realm = Protocol.Realm(parts[2], parts[3])
                 when (parts[0]) {
                     "get"    -> Protocol.get(   parts[1].toCharArray(), realm, cs, passwordCallback)
-                    "change" -> Protocol.change(parts[1].toCharArray(), realm, cs, passwordCallback)
-                    "commit" -> Protocol.commit(parts[1].toCharArray(), realm, cs, passwordCallback)
+                    "commit" -> Protocol.commit(parts[1].toCharArray(), realm, cs)
                     "delete" -> Protocol.delete(parts[1].toCharArray(), realm, cs)
                 }
             }

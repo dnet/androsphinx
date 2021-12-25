@@ -8,7 +8,7 @@ const val RULE_SHIFT: Int = 7
 const val XOR_MASK_BYTES: Int = 32
 
 private val SIZE_MASK = BigInteger.valueOf(0x7F)
-private val CHECK_DIGIT_MASK = BigInteger.valueOf(0x1F)
+val CHECK_DIGIT_MASK: BigInteger = BigInteger.valueOf(0x1F)
 private val SYMBOL_OFFSET = CharacterClass.values().count { it.range != null } + RULE_SHIFT
 private val CHECK_DIGIT_SHIFT = SYMBOL_OFFSET + SYMBOL_SET.length
 

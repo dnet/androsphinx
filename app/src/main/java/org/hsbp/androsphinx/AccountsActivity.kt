@@ -100,6 +100,8 @@ class AccountsActivity : AppCompatActivity() {
             passwordReceived = password
         }
 
+        override fun ruleReceived(rule: Rule) {}
+
         fun updateLabel(message: Int) {
             val string = getString(message)
             feedbackLabel.text = string
@@ -190,21 +192,32 @@ class AccountsActivity : AppCompatActivity() {
                            private val realm: Protocol.Realm,
                            feedbackLabel: TextView) : CopyUpdateTask(feedbackLabel, R.string.password_change_mode) {
 
-        override fun run() = Protocol.change(masterPassword, realm, cs, this)
+        private var rule: Rule? = null
+
+        override fun run() {
+            val masterPasswordClone = masterPassword.clone()
+            Protocol.get(masterPassword, realm, cs, this)
+            val r = rule ?: throw Protocol.ServerFailureException()
+            Protocol.change(masterPasswordClone, realm, r.charClasses, cs, this, r.symbols, r.size.toInt())
+        }
+
+        override fun ruleReceived(rule: Rule) {
+            this.rule = rule
+        }
     }
 
     inner class UndoTask(private val masterPassword: CharArray,
                            private val realm: Protocol.Realm,
                            feedbackLabel: TextView) : CopyUpdateTask(feedbackLabel, R.string.old_password_copied_to_clipboard) {
 
-        override fun run() = Protocol.undo(masterPassword, realm, cs, this)
+        override fun run() = Protocol.undo(masterPassword, realm, cs)
     }
 
     inner class CommitTask(private val masterPassword: CharArray,
                            private val realm: Protocol.Realm,
                            feedbackLabel: TextView) : CopyUpdateTask(feedbackLabel, R.string.new_password_copied_to_clipboard) {
 
-        override fun run() = Protocol.commit(masterPassword, realm, cs, this)
+        override fun run() = Protocol.commit(masterPassword, realm, cs)
     }
 
     abstract inner class CopyUpdateTask(feedbackLabel: TextView,
@@ -246,6 +259,8 @@ class AccountsActivity : AppCompatActivity() {
         override fun passwordReceived(password: CharArray) {
             passwordReceived = password
         }
+
+        override fun ruleReceived(rule: Rule) {}
 
         override fun doInBackground(vararg p0: Void?): Exception? {
             return try {
