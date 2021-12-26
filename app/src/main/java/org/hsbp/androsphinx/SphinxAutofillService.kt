@@ -35,7 +35,7 @@ class SphinxAutofillService : AutofillService() {
         } else {
             val ids = (result.usernames union result.passwords).toTypedArray()
             if (ids.isEmpty()) {
-                callback.onFailure(getString(R.string.R_string_autofill_no_inputs))
+                callback.onFailure(getString(R.string.autofill_no_inputs))
                 return
             }
             val authIntent = Intent(this, AccountsActivity::class.java).apply {
