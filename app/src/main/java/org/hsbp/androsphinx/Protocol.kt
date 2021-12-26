@@ -14,8 +14,6 @@ import javax.net.ssl.SSLSocketFactory
 
 const val RULE_BYTES_LENGTH: Int = 38
 const val AUTH_NONCE_BYTES: Int = 32
-const val CHALLENGE_CREATE: Byte = 0x5a
-const val CHALLENGE_VERIFY: Byte = 0xa5.toByte()
 const val VERSION_LENGTH: Int = 1
 const val ENCRYPTED_RULE_LENGTH: Int = CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES + CRYPTO_AEAD_XCHACHA20POLY1305_IETF_ABYTES + RULE_BYTES_LENGTH + VERSION_LENGTH
 
@@ -26,9 +24,9 @@ class Protocol {
                        val writeRule: Boolean = false, val rateLimit: Boolean = true,
                        val appendUser: Boolean = false, val checkOK: Boolean = false) {
         CREATE(0x00, requiresAuth = false, writeRule = true, rateLimit = false, appendUser = true),
-        READ(0x33), UNDO(0x55, checkOK = true),
+        READ(0x33), UNDO(0x55, checkOK = true), CHALLENGE_CREATE(0x5a),
         GET(0x66, requiresAuth = false), COMMIT(0x99.toByte(), checkOK = true),
-        CHANGE(0xAA.toByte(), writeRule = true, checkOK = true),
+        CHANGE(0xAA.toByte(), writeRule = true, checkOK = true), CHALLENGE_VERIFY(0xA5.toByte()),
         WRITE(0xCC.toByte()), DELETE(0xFF.toByte());
 
         fun <T> connect(cs: CredentialStore, password: CharArray, id: ByteArray,
@@ -177,7 +175,7 @@ class Protocol {
 
 private fun performRateLimit(cs: Protocol.CredentialStore, request: ByteArray): Socket {
     val challenge = cs.createSocket().use { s ->
-        s.getOutputStream().write(byteArrayOf(CHALLENGE_CREATE) + request)
+        s.sendCommand(Protocol.Command.CHALLENGE_CREATE, request)
         s.getInputStream().readExactly(1 + 1 + 8 + 32)
     }
     val n = challenge[0]
@@ -185,12 +183,15 @@ private fun performRateLimit(cs: Protocol.CredentialStore, request: ByteArray): 
     val seed = challenge + request
     val solution = Equihash.solve(n.toInt(), k.toInt(), seed)!!
     val socket = cs.createSocket()
-    socket.getOutputStream().apply {
-        write(byteArrayOf(CHALLENGE_VERIFY) + challenge)
-        write(request)
-        write(solution)
-    }
+    socket.sendCommand(Protocol.Command.CHALLENGE_VERIFY, challenge, request, solution)
     return socket
+}
+
+private fun Socket.sendCommand(command: Protocol.Command, vararg parts: ByteArray) {
+    val bb = ByteBuffer.allocate(1 + parts.sumBy { it.size })
+    bb.put(command.code)
+    parts.forEach { bb.put(it) }
+    getOutputStream().write(bb.array())
 }
 
 private fun updateUserList(socket: Socket, cs: Protocol.CredentialStore, realm: Protocol.Realm,
