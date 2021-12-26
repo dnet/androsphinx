@@ -55,7 +55,7 @@ class Tester(object):
                 print(f'\r{size:2}/{chars:4}', end='', file=stderr)
 
                 username = f"user-{uuid4()}"
-                ps_pw = self.pwdsphinx_cmd(master_pwd, "create", username, hostname, chars, size)
+                ps_pw = self.pwdsphinx_cmd(master_pwd, "create", username, hostname, chars.replace('s', ''), size, '!$(' if 's' in chars else '')
                 as_pw = self.asrepl_cmd("get", master_pwd, username, hostname)
                 assert ps_pw == as_pw, f"{size} of {chars!r} -> {ps_pw!r} != {as_pw!r}"
 
@@ -66,7 +66,7 @@ class Tester(object):
                 ps_pw = self.pwdsphinx_cmd(master_pwd, "get", username, hostname)
                 assert ps_pw == as_pw, f"{size} of {chars!r} <- {ps_pw!r} != {as_pw!r}"
 
-                as_pw = self.asrepl_cmd("change", master_pwd, username, hostname)
+                as_pw = self.asrepl_cmd("change", master_pwd, username, hostname, chars, size)
                 self.pwdsphinx_cmd(master_pwd, "commit", username, hostname)
                 ps_pw = self.pwdsphinx_cmd(master_pwd, "get", username, hostname)
                 assert ps_pw == as_pw, f"{size} of {chars!r} <= {ps_pw!r} != {as_pw!r}"
