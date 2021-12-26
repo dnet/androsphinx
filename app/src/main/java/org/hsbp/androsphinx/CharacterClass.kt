@@ -28,7 +28,7 @@ enum class CharacterClass(private val bit: Int, internal val range: Set<Char>?, 
             }
 
         fun derive(rwd: BigInteger, rule: Set<CharacterClass>, size: Int, syms: Set<Char> = SYMBOL_SET.toSet()): CharArray {
-            require(rule.isNotEmpty()) { "At least one character class must be allowed." }
+            require(rule.isNotEmpty() || syms.isNotEmpty()) { "At least one character class or symbol must be allowed." }
             val order = arrayOf(UPPER, LOWER, DIGITS)
             val chars = order.filter(rule::contains).flatMap { it.range!!.sorted() }.toList() + syms.sorted()
             val password = encode(rwd, chars, size)

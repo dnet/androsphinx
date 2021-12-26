@@ -140,7 +140,7 @@ class Protocol {
 
         fun change(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
                    cs: CredentialStore, callback: PasswordCallback, symbols: Set<Char>, size: Int = 0) {
-            require(charClasses.isNotEmpty()) { "At least one character class must be allowed." }
+            require(charClasses.isNotEmpty() || symbols.isNotEmpty()) { "At least one character class or symbol must be allowed." }
             val xorMask = BigInteger.ZERO // TODO add support for non-zero xorMask creation
             val rule = Rule(charClasses, symbols, size.toBigInteger(), xorMask)
             Command.CHANGE.execute(realm, password, cs, callback, rule)
