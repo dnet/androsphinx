@@ -44,6 +44,7 @@
         android:layout_margin="16dp"
         android:src="@drawable/ic_settings_black_24dp"
         app:layout_anchor="@id/appbar"
-        app:layout_anchorGravity="bottom|end" />
+        app:layout_anchorGravity="bottom|end"
+        android:contentDescription="@string/open_settings" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
