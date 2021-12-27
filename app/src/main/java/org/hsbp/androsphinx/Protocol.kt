@@ -188,7 +188,7 @@ private fun performRateLimit(cs: Protocol.CredentialStore, request: ByteArray): 
 }
 
 private fun Socket.sendCommand(command: Protocol.Command, vararg parts: ByteArray) {
-    val bb = ByteBuffer.allocate(1 + parts.sumBy { it.size })
+    val bb = ByteBuffer.allocate(1 + parts.sumOf { it.size })
     bb.put(command.code)
     parts.forEach { bb.put(it) }
     getOutputStream().write(bb.array())
