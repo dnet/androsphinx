@@ -134,7 +134,6 @@ class SettingsFragment : PreferenceFragmentCompat() {
 
     @Suppress("UsePropertyAccessSyntax")
     @SuppressLint("MissingSuperCall")
-    @ExperimentalStdlibApi
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == IntentIntegrator.REQUEST_CODE) {
             val ir = IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
