@@ -75,7 +75,7 @@ class AccountsActivity : AppCompatActivity() {
                         users.map(::UserProxy).toTypedArray()
                     }
                     userList.adapter =
-                        ArrayAdapter<UserProxy>(this@AccountsActivity, android.R.layout.simple_list_item_1, objects)
+                        ArrayAdapter(this@AccountsActivity, android.R.layout.simple_list_item_1, objects)
                 }
                 is Protocol.ServerFailureException -> handleError(R.string.server_error_title)
                 is SodiumException -> handleError(R.string.sodium_error_title)
