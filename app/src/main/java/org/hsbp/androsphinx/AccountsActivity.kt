@@ -321,7 +321,7 @@ class AccountsActivity : AppCompatActivity() {
                     return
                 }
 
-                userList.setOnItemClickListener { adapterView, view, i, l ->
+                userList.setOnItemClickListener { adapterView, _, i, _ ->
                     val username = (adapterView.getItemAtPosition(i) as UserProxy).username
                     if (username != null) showUser(Protocol.Realm(username, hostname))
                 }
