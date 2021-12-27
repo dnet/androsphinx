@@ -26,6 +26,7 @@
     <string name="server_error_title">A server error occurred</string>
     <string name="server_error_password_title">A server error occurred, make sure the master password is valid</string>
     <string name="sodium_error_title">A cryptographic error occurred, make sure the master password is valid</string>
+    <string name="check_digit_mismatch_title">Check digit mismatch, make sure the master password is valid</string>
     <string name="io_error_title">A network error occurred</string>
     <string name="unknown_error_title">An unknown error occurred</string>
     <string name="internal_error_title">An internal error occurred</string>
