@@ -4,12 +4,7 @@
 package org.hsbp.androsphinx
 
 import java.math.BigInteger
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.util.*
-import kotlin.experimental.and
-import kotlin.experimental.or
-import kotlin.math.log
 
 enum class CharacterClass(private val bit: Int, internal val range: Set<Char>?, val description: Int) {
     UPPER(bit = 0, range = CharRange('A', 'Z').toSet(), description = R.string.character_class_upper),

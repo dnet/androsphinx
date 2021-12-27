@@ -13,7 +13,6 @@ import android.service.autofill.*
 import android.text.InputType
 import android.view.View
 import android.view.autofill.AutofillId
-import android.view.autofill.AutofillValue
 import android.widget.RemoteViews
 import java.util.*
 import kotlin.collections.HashSet
