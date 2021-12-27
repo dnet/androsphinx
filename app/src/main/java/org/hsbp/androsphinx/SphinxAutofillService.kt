@@ -90,7 +90,7 @@ class SphinxAutofillService : AutofillService() {
         }
 
         private fun inferHints(idEntry: String?): Array<String>? {
-            val hint = idEntry?.toLowerCase(Locale.ROOT)
+            val hint = idEntry?.lowercase(Locale.ROOT)
             if (hint == null || "label" in hint || "container" in hint) return null
 
             if ("password" in hint) return arrayOf(View.AUTOFILL_HINT_PASSWORD)

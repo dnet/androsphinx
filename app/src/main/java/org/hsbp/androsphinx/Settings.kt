@@ -202,7 +202,7 @@ enum class ShareType(private val code: Byte) {
         get() = 0
 
     val key: String
-        get() = "share_qr_${name.toLowerCase(Locale.ROOT)}"
+        get() = "share_qr_${name.lowercase(Locale.ROOT)}"
 
     fun serialize(context: Context): ByteArray {
         val cs = AndroidCredentialStore(context)
