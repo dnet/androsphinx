@@ -106,8 +106,8 @@ There's a built in command list by using the `help` command:
 	ASREPL> help
 	Available commands:
 
-	create <master password> <user> <site> [u][l][d][s] [<size>]
-	<get|change|commit|delete> <master password> <user> <site>
+	<create|change> <master password> <user> <site> [u][l][d][s] [<size>]
+	<get|commit|delete> <master password> <user> <site>
 	list <site>
 	ASREPL>
 
