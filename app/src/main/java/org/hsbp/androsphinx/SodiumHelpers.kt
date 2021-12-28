@@ -87,7 +87,10 @@ inline class AeadKey(private val key: ByteArray) {
         require(input.size > CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES) { "Invalid input size" }
         val ciphertext = input.sliceArray(1 until input.size)
         val version = input[0]
+        if (version != VERSION[0]) throw UnknownVersionException()
         val plaintext = Sodium.cryptoAeadXchachaPoly1305IetfOpenEasy(ciphertext, byteArrayOf(version), key) ?: throw SodiumException("Cannot decrypt AEAD")
         return version to plaintext
     }
 }
+
+class UnknownVersionException : RuntimeException()

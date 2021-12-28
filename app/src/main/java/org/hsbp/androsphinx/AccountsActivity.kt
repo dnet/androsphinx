@@ -79,6 +79,7 @@ class AccountsActivity : AppCompatActivity() {
                 }
                 is Protocol.ServerFailureException -> handleError(R.string.server_error_title)
                 is SodiumException -> handleError(R.string.sodium_error_title)
+                is UnknownVersionException -> handleError(R.string.unknown_version_title)
                 is IOException -> handleError(R.string.io_error_title)
                 else -> handleError(R.string.unknown_error_title)
             }
@@ -137,6 +138,7 @@ class AccountsActivity : AppCompatActivity() {
                 is Protocol.ServerFailureException -> handleError(R.string.server_error_password_title)
                 is SodiumException -> handleError(R.string.sodium_error_title)
                 is Protocol.CheckDigitMismatchException -> handleError(R.string.check_digit_mismatch_title)
+                is UnknownVersionException -> handleError(R.string.unknown_version_title)
                 is IOException -> handleError(R.string.io_error_title)
                 else -> handleError(R.string.unknown_error_title)
             }
@@ -286,6 +288,7 @@ class AccountsActivity : AppCompatActivity() {
                 }
                 is Protocol.ServerFailureException -> handleError(R.string.server_error_title)
                 is SodiumException -> handleError(R.string.sodium_error_title)
+                is UnknownVersionException -> handleError(R.string.unknown_version_title) // beacuse of user list update
                 is IOException -> handleError(R.string.io_error_title)
                 else -> handleError(R.string.unknown_error_title)
             }
