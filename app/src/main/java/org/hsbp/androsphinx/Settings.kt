@@ -112,10 +112,16 @@ class SettingsFragment : PreferenceFragmentCompat() {
     }
 
     private fun showQR(payload: ByteArray, title: CharSequence, hasSecret: Boolean) {
-        val display = requireActivity().windowManager.defaultDisplay
-        val size = Point()
-        display.getSize(size)
-        val dimension = size.x.coerceAtMost(size.y) / 4 * 3
+        val (width, height) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val bounds = requireActivity().windowManager.currentWindowMetrics.bounds
+            bounds.width() to bounds.height()
+        } else {
+            val display = requireActivity().windowManager.defaultDisplay
+            val size = Point()
+            display.getSize(size)
+            size.x to size.y
+        }
+        val dimension = width.coerceAtMost(height) / 4 * 3
         val result = QRCodeWriter().encode(payload, BarcodeFormat.QR_CODE, dimension, dimension)
         val w = result.width
         val h = result.height
