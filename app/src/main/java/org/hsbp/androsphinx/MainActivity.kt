@@ -10,16 +10,19 @@ import android.view.Menu
 import androidx.appcompat.app.AppCompatActivity
 import android.widget.SearchView
 import androidx.core.content.getSystemService
-import kotlinx.android.synthetic.main.activity_main.*
+import org.hsbp.androsphinx.databinding.ActivityMainBinding
 import java.net.URL
 
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var binding: ActivityMainBinding
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        fab_settings.setOnClickListener {
+        binding.fabSettings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
 

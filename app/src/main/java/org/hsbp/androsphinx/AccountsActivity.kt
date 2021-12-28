@@ -19,8 +19,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.addTextChangedListener
 import com.commonsware.cwac.security.flagsecure.FlagSecureHelper
 import com.google.android.material.snackbar.Snackbar
-import kotlinx.android.synthetic.main.activity_accounts.*
-import kotlinx.android.synthetic.main.content_accounts.*
 import java.io.IOException
 import java.lang.Exception
 import java.net.MalformedURLException
@@ -37,6 +35,7 @@ import android.text.format.DateUtils
 import android.view.autofill.AutofillManager
 import android.view.autofill.AutofillValue
 import com.nulabinc.zxcvbn.Zxcvbn
+import org.hsbp.androsphinx.databinding.ActivityAccountsBinding
 import kotlin.math.roundToLong
 
 @Suppress("SpellCheckingInspection")
@@ -46,13 +45,14 @@ class AccountsActivity : AppCompatActivity() {
 
     private val cs = AndroidCredentialStore(this)
     private var autoFill = false
+    private lateinit var binding: ActivityAccountsBinding
 
     inner class UpdateUserListTask(private val hostname: String) : AsyncTask<Void, Void, Exception?>() {
 
         private var users: Set<String> = emptySet()
 
         override fun onPreExecute() {
-            pullToRefresh.isRefreshing = true
+            binding.accounts.pullToRefresh.isRefreshing = true
         }
 
         override fun doInBackground(vararg p0: Void?): Exception? {
@@ -65,16 +65,16 @@ class AccountsActivity : AppCompatActivity() {
         }
 
         override fun onPostExecute(result: Exception?) {
-            pullToRefresh.isRefreshing = false
+            binding.accounts.pullToRefresh.isRefreshing = false
             when (result) {
                 null -> {
                     val objects = if (users.isEmpty()) {
-                        userList.announceForAccessibility(getString(R.string.no_users_for_host))
+                        binding.accounts.userList.announceForAccessibility(getString(R.string.no_users_for_host))
                         arrayOf(UserProxy(null))
                     } else {
                         users.map(::UserProxy).toTypedArray()
                     }
-                    userList.adapter =
+                    binding.accounts.userList.adapter =
                         ArrayAdapter(this@AccountsActivity, android.R.layout.simple_list_item_1, objects)
                 }
                 is Protocol.ServerFailureException -> handleError(R.string.server_error_title)
@@ -86,10 +86,10 @@ class AccountsActivity : AppCompatActivity() {
 
         private fun handleError(message: Int) {
             val string = getString(message)
-            Snackbar.make(fab, string, Snackbar.LENGTH_LONG).setAction(R.string.retry) {
+            Snackbar.make(binding.fab, string, Snackbar.LENGTH_LONG).setAction(R.string.retry) {
                 UpdateUserListTask(hostname).execute()
             }.show()
-            fab.announceForAccessibility(string)
+            binding.fab.announceForAccessibility(string)
         }
     }
 
@@ -146,8 +146,8 @@ class AccountsActivity : AppCompatActivity() {
 
         fun showSnackbar(message: Int) {
             val msg = getString(message)
-            Snackbar.make(fab, msg, Snackbar.LENGTH_LONG).show()
-            fab.announceForAccessibility(msg)
+            Snackbar.make(binding.fab, msg, Snackbar.LENGTH_LONG).show()
+            binding.fab.announceForAccessibility(msg)
         }
     }
 
@@ -281,7 +281,7 @@ class AccountsActivity : AppCompatActivity() {
                     } else {
                         updateUserList(realm.hostname)
                         copyPasswordToClipboard(pw)
-                        Snackbar.make(fab, R.string.password_copied_to_clipboard, Snackbar.LENGTH_LONG).show()
+                        Snackbar.make(binding.fab, R.string.password_copied_to_clipboard, Snackbar.LENGTH_LONG).show()
                     }
                 }
                 is Protocol.ServerFailureException -> handleError(R.string.server_error_title)
@@ -292,7 +292,7 @@ class AccountsActivity : AppCompatActivity() {
         }
 
         private fun handleError(message: Int) {
-            Snackbar.make(fab, message, Snackbar.LENGTH_LONG).setAction(R.string.retry) {
+            Snackbar.make(binding.fab, message, Snackbar.LENGTH_LONG).setAction(R.string.retry) {
                 CreateTask(masterPassword, realm, charClasses, size).execute()
             }.show()
         }
@@ -300,8 +300,9 @@ class AccountsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_accounts)
-        setSupportActionBar(toolbar)
+        binding = ActivityAccountsBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        setSupportActionBar(binding.toolbar)
 
         if (Intent.ACTION_SEARCH == intent.action) {
             intent.getStringExtra(SearchManager.QUERY)?.also { query ->
@@ -321,16 +322,16 @@ class AccountsActivity : AppCompatActivity() {
                     return
                 }
 
-                userList.setOnItemClickListener { adapterView, _, i, _ ->
+                binding.accounts.userList.setOnItemClickListener { adapterView, _, i, _ ->
                     val username = (adapterView.getItemAtPosition(i) as UserProxy).username
                     if (username != null) showUser(Protocol.Realm(username, hostname))
                 }
 
-                fab.setOnClickListener { view ->
+                binding.fab.setOnClickListener { view ->
                     addUser(hostname, view)
                 }
 
-                pullToRefresh.setOnRefreshListener {
+                binding.accounts.pullToRefresh.setOnRefreshListener {
                     updateUserList(hostname)
                 }
 
