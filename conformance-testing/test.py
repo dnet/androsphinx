@@ -46,9 +46,9 @@ class Tester(object):
 
     def run(self):
         master_pwd = "conformanceTestingMasterPw"
-        hostname = f"{uuid4()}.example.tld"
         for size in range(2, 20):
             for s in product('u.', 's.', 'l.', 'd.'):
+                hostname = f"{uuid4()}.example.tld"
                 chars = ''.join(s).replace('.', '')
                 if not chars:
                     continue
