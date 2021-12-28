@@ -42,7 +42,8 @@ class SphinxAutofillService : AutofillService() {
                 putExtra(EXTRA_ACCOUNTS_AUTOFILL, true)
                 putExtra(SearchManager.QUERY, domain)
             }
-            val authentication = PendingIntent.getActivity(this, 1001, authIntent, PendingIntent.FLAG_CANCEL_CURRENT).intentSender
+            val authentication = PendingIntent.getActivity(this, 1001, authIntent,
+                PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_MUTABLE).intentSender
             val presentation =  RemoteViews(packageName, android.R.layout.simple_list_item_1).apply {
                 setTextViewText(android.R.id.text1, getString(R.string.autofill_remote_button_text))
             }
