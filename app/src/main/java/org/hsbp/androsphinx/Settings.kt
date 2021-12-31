@@ -85,6 +85,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
                     if (afm.hasEnabledAutofillServices()) {
                         pref.isEnabled = false
                         pref.setTitle(R.string.autofill_provider_already_set)
+                        pref.summary = ""
                     } else {
                         pref.isEnabled = true
                         pref.setTitle(R.string.request_autofill_set_title)
