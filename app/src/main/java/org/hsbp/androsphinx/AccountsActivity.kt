@@ -143,12 +143,12 @@ class AccountsActivity : AppCompatActivity() {
         }
 
         private fun handleError(message: Int) = updateLabel(message)
+    }
 
-        fun showSnackbar(message: Int) {
-            val msg = getString(message)
-            Snackbar.make(binding.fab, msg, Snackbar.LENGTH_LONG).show()
-            binding.fab.announceForAccessibility(msg)
-        }
+    fun showSnackbar(message: Int) {
+        val msg = getString(message)
+        Snackbar.make(binding.fab, msg, Snackbar.LENGTH_LONG).show()
+        binding.fab.announceForAccessibility(msg)
     }
 
     @TargetApi(26)
