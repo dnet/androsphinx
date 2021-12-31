@@ -53,17 +53,14 @@ const val QR_FLAGS_RWD_KEYS: Int = 2
 const val BLACK: Int = 0xFF000000.toInt()
 const val WHITE: Int = 0xFFFFFFFF.toInt()
 
-class SettingsFragment : PreferenceFragmentCompat() {
+class SettingsFragment : PreferenceFragmentCompat(), Preference.OnPreferenceClickListener {
     private val openAutoFillSettings = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         updateAutoFillStatus()
     }
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.preferences, rootKey)
-        preferenceManager.findPreference<Preference>("scan_qr")!!.setOnPreferenceClickListener {
-            IntentIntegrator(this).initiateScan(IntentIntegrator.QR_CODE_TYPES)
-            true
-        }
+        preferenceManager.findPreference<Preference>("scan_qr")!!.setOnPreferenceClickListener(this)
         ShareType.values().forEach { t ->
             val p = preferenceManager.findPreference<Preference>(t.key)!!
             p.setOnPreferenceClickListener {
@@ -192,6 +189,10 @@ class SettingsFragment : PreferenceFragmentCompat() {
                 Toast.makeText(context, R.string.scan_qr_error, Toast.LENGTH_LONG).show()
             }
         }
+    }
+    override fun onPreferenceClick(preference: Preference?): Boolean {
+        IntentIntegrator(this).initiateScan(IntentIntegrator.QR_CODE_TYPES)
+        return true
     }
 }
 
