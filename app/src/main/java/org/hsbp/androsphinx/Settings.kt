@@ -27,6 +27,8 @@ import android.os.Build
 import android.provider.Settings
 import android.view.autofill.AutofillManager
 import android.widget.ImageView
+import androidx.activity.result.contract.ActivityResultContract
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.getSystemService
 import androidx.preference.SwitchPreference
@@ -51,9 +53,11 @@ const val QR_FLAGS_RWD_KEYS: Int = 2
 const val BLACK: Int = 0xFF000000.toInt()
 const val WHITE: Int = 0xFFFFFFFF.toInt()
 
-const val REQUEST_SET_AUTO_FILL_SERVICE: Int = 1
-
 class SettingsFragment : PreferenceFragmentCompat() {
+    private val openAutoFillSettings = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        updateAutoFillStatus()
+    }
+
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.preferences, rootKey)
         preferenceManager.findPreference<Preference>("scan_qr")!!.setOnPreferenceClickListener {
@@ -91,10 +95,10 @@ class SettingsFragment : PreferenceFragmentCompat() {
                         pref.setTitle(R.string.request_autofill_set_title)
                         pref.setSummary(R.string.request_autofill_set_summary)
                         pref.setOnPreferenceClickListener {
-                            startActivityForResult(
+                            openAutoFillSettings.launch(
                                 Intent(Settings.ACTION_REQUEST_SET_AUTOFILL_SERVICE).setData(
                                     Uri.parse("package:${ctx.packageName}")
-                                ), REQUEST_SET_AUTO_FILL_SERVICE
+                                )
                             )
                             true
                         }
@@ -187,8 +191,6 @@ class SettingsFragment : PreferenceFragmentCompat() {
                 e.printStackTrace()
                 Toast.makeText(context, R.string.scan_qr_error, Toast.LENGTH_LONG).show()
             }
-        } else if (requestCode == REQUEST_SET_AUTO_FILL_SERVICE) {
-            updateAutoFillStatus()
         }
     }
 }
