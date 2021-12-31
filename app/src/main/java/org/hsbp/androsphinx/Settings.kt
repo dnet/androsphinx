@@ -11,7 +11,6 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.text.InputType
 import android.util.AttributeSet
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.EditTextPreference
 import androidx.preference.Preference
@@ -33,6 +32,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.content.getSystemService
 import androidx.preference.SwitchPreference
 import com.commonsware.cwac.security.flagsecure.FlagSecureHelper
+import com.google.android.material.snackbar.Snackbar
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import java.util.*
@@ -183,13 +183,15 @@ class SettingsFragment : PreferenceFragmentCompat(), Preference.OnPreferenceClic
                     }
                 }
 
-                Toast.makeText(context, R.string.scan_qr_done, Toast.LENGTH_LONG).show()
+                Snackbar.make(requireView(), R.string.scan_qr_done, Snackbar.LENGTH_LONG).show()
             } catch (e: Exception) {
                 e.printStackTrace()
-                Toast.makeText(context, R.string.scan_qr_error, Toast.LENGTH_LONG).show()
+                Snackbar.make(requireView(), R.string.scan_qr_error,
+                    Snackbar.LENGTH_LONG).setAction(R.string.retry) { onPreferenceClick(null) }.show()
             }
         }
     }
+
     override fun onPreferenceClick(preference: Preference?): Boolean {
         IntentIntegrator(this).initiateScan(IntentIntegrator.QR_CODE_TYPES)
         return true
