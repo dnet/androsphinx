@@ -57,12 +57,12 @@ class Protocol {
             }
         }
 
-        fun execute(realm: Realm, password: CharArray, cs: CredentialStore, callback: PasswordCallback,
-                    createRule: Rule? = null) {
+        fun execute(realm: Realm, password: CharArray, cs: CredentialStore,
+                    createRule: Rule? = null): Pair<Rule, CharArray> {
             val hostId = realm.hash(cs)
             val challenge = if (requiresAuth) Sphinx.Challenge(password.clone()) else null
 
-            val derived = connect(cs, password, hostId) { s, oldRwd ->
+            return connect(cs, password, hostId) { s, oldRwd ->
                 val sis = s.getInputStream()
                 val newRwd = challenge?.use { c -> // TODO: "CHANGE" -> allow new pw
                     s.getOutputStream().write(c.challenge)
@@ -75,7 +75,6 @@ class Protocol {
                         if (checkDigit != calculateCheckDigit(newRwd).and(CHECK_DIGIT_MASK)) {
                             throw CheckDigitMismatchException()
                         }
-                        callback.ruleReceived(this)
                     }
                 } else createRule.withCheckDigit(calculateCheckDigit(newRwd))
 
@@ -88,10 +87,8 @@ class Protocol {
                 }
 
                 val rwd = BigInteger(POSITIVE, Context.PASSWORD.foldHash(newRwd)).xor(rule.xorMask)
-                CharacterClass.derive(rwd, rule.charClasses, rule.size.toInt(), rule.symbols)
-            }
-
-            callback.passwordReceived(derived!!)
+                rule to CharacterClass.derive(rwd, rule.charClasses, rule.size.toInt(), rule.symbols)
+            }!!
         }
     }
 
@@ -112,36 +109,33 @@ class Protocol {
         val rwdKeys: Boolean
     }
 
-    interface PasswordCallback {
-        fun passwordReceived(password: CharArray)
-        fun ruleReceived(rule: Rule)
-    }
-
     companion object {
 
         fun create(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
-                   cs: CredentialStore, callback: PasswordCallback, size: Int = 0) {
+                   cs: CredentialStore, size: Int = 0): CharArray {
             require(charClasses.isNotEmpty()) { "At least one character class must be allowed." }
             val symbols = if (charClasses.contains(CharacterClass.SYMBOLS)) SYMBOL_SET.toSet() else emptySet() // TODO allow fine-grain control
             val xorMask = BigInteger.ZERO // TODO add support for non-zero xorMask creation
             val rule = Rule(charClasses, symbols, size.toBigInteger(), xorMask)
-            Command.CREATE.execute(realm, password, cs, callback, rule)
+            val (_, derived) = Command.CREATE.execute(realm, password, cs, rule)
+            return derived
         }
 
         fun calculateCheckDigit(rwd: ByteArray): BigInteger {
             return BigInteger(POSITIVE, Context.CHECK_DIGIT.foldHash(rwd))
         }
 
-        fun get(password: CharArray, realm: Realm, cs: CredentialStore, callback: PasswordCallback) {
-            Command.GET.execute(realm, password, cs, callback)
+        fun get(password: CharArray, realm: Realm, cs: CredentialStore): Pair<Rule, CharArray> {
+            return Command.GET.execute(realm, password, cs)
         }
 
         fun change(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
-                   cs: CredentialStore, callback: PasswordCallback, symbols: Set<Char>, size: Int = 0) {
+                   cs: CredentialStore, symbols: Set<Char>, size: Int = 0): CharArray {
             require(charClasses.isNotEmpty() || symbols.isNotEmpty()) { "At least one character class or symbol must be allowed." }
             val xorMask = BigInteger.ZERO // TODO add support for non-zero xorMask creation
             val rule = Rule(charClasses, symbols, size.toBigInteger(), xorMask)
-            Command.CHANGE.execute(realm, password, cs, callback, rule)
+            val (_, derived) = Command.CHANGE.execute(realm, password, cs, rule)
+            return derived
         }
 
         fun commit(password: CharArray, realm: Realm, cs: CredentialStore) {

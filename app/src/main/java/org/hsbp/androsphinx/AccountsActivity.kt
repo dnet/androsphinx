@@ -94,14 +94,12 @@ class AccountsActivity : AppCompatActivity() {
         }
     }
 
-    abstract inner class UserTask(private val feedbackLabel: TextView) : AsyncTask<Void, Void, Exception?>(), Protocol.PasswordCallback {
+    abstract inner class UserTask(private val feedbackLabel: TextView) : AsyncTask<Void, Void, Exception?>() {
         private var passwordReceived: CharArray? = null
 
-        override fun passwordReceived(password: CharArray) {
+        fun passwordReceived(password: CharArray) {
             passwordReceived = password
         }
-
-        override fun ruleReceived(rule: Rule) {}
 
         fun updateLabel(message: Int) {
             val string = getString(message)
@@ -182,7 +180,7 @@ class AccountsActivity : AppCompatActivity() {
                              private val alertDialog: AlertDialog,
                              feedbackLabel: TextView) : UserTask(feedbackLabel) {
 
-        override fun run() = Protocol.get(masterPassword, realm, cs, this)
+        override fun run() = passwordReceived(Protocol.get(masterPassword, realm, cs).second)
 
         override fun handlePassword(pw: CharArray) {
             copyPasswordToClipboard(pw)
@@ -195,17 +193,10 @@ class AccountsActivity : AppCompatActivity() {
                            private val realm: Protocol.Realm,
                            feedbackLabel: TextView) : CopyUpdateTask(feedbackLabel, R.string.password_change_mode) {
 
-        private var rule: Rule? = null
-
         override fun run() {
             val masterPasswordClone = masterPassword.clone()
-            Protocol.get(masterPassword, realm, cs, this)
-            val r = rule ?: throw Protocol.ServerFailureException()
-            Protocol.change(masterPasswordClone, realm, r.charClasses, cs, this, r.symbols, r.size.toInt())
-        }
-
-        override fun ruleReceived(rule: Rule) {
-            this.rule = rule
+            val (r, _) = Protocol.get(masterPassword, realm, cs)
+            Protocol.change(masterPasswordClone, realm, r.charClasses, cs, r.symbols, r.size.toInt())
         }
     }
 
@@ -255,19 +246,13 @@ class AccountsActivity : AppCompatActivity() {
 
     inner class CreateTask(private val masterPassword: CharArray, private val realm: Protocol.Realm,
                      private val charClasses: Set<CharacterClass>,
-                     private val size: Int) : AsyncTask<Void, Void, Exception?>(), Protocol.PasswordCallback {
+                     private val size: Int) : AsyncTask<Void, Void, Exception?>() {
 
         private var passwordReceived: CharArray? = null
 
-        override fun passwordReceived(password: CharArray) {
-            passwordReceived = password
-        }
-
-        override fun ruleReceived(rule: Rule) {}
-
         override fun doInBackground(vararg p0: Void?): Exception? {
             return try {
-                Protocol.create(masterPassword, realm, charClasses, cs, this, size)
+                passwordReceived = Protocol.create(masterPassword, realm, charClasses, cs, size)
                 null
             } catch (e: Exception) {
                 e

@@ -117,68 +117,42 @@ class ExampleInstrumentedTest {
         val realm2 = Protocol.Realm(username2, hostname)
         val charClasses = setOf(CharacterClass.LOWER, CharacterClass.DIGITS)
         val size = 18
-        val callback = object : Protocol.PasswordCallback {
-            var gotPassword: CharArray? = null
-            var gotRule: Rule? = null
-
-            override fun passwordReceived(password: CharArray) {
-                gotPassword = password
-            }
-
-            override fun ruleReceived(rule: Rule) {
-                gotRule = rule
-            }
-        }
 
         assert(Protocol.list(hostname, cs).isEmpty())
 
-        Protocol.create("sphinxNetworkTestMasterPassword".toCharArray(), realm, charClasses, cs, callback, size)
-        assertNotNull(callback.gotPassword)
-        val pw = callback.gotPassword!!
+        val pw = Protocol.create("sphinxNetworkTestMasterPassword".toCharArray(), realm, charClasses, cs, size)
         assertEquals(size, pw.size)
         assert(pw.all { pwChar -> charClasses.any { it.range?.contains(pwChar) ?: false } })
         val userList = Protocol.list(hostname, cs)
         assertEquals(1, userList.size)
         assert(userList.contains(username))
 
-        Protocol.create("sphinxNetworkTestMasterPassword2".toCharArray(), realm2, charClasses, cs, callback, size)
+        Protocol.create("sphinxNetworkTestMasterPassword2".toCharArray(), realm2, charClasses, cs, size)
         val userList2 = Protocol.list(hostname, cs)
         assertEquals(2, userList2.size)
         assert(userList2.contains(username))
         assert(userList2.contains(username2))
 
-        callback.gotPassword = null
-
-        Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
-        assertArrayEquals(pw, callback.gotPassword)
-        val gr = callback.gotRule!!
+        val (gr, pwGet) = Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
+        assertArrayEquals(pw, pwGet)
         assertEquals(gr.charClasses, charClasses)
         assertEquals(gr.size.toInt(), size)
 
-        callback.gotPassword = null
+        val pwChanged = Protocol.change("sphinxNetworkTestMasterPassword".toCharArray(), realm, charClasses, cs, emptySet(), size)
+        assertFalse(pwChanged.contentEquals(pwGet))
 
-        Protocol.change("sphinxNetworkTestMasterPassword".toCharArray(), realm, charClasses, cs, callback, emptySet(), size)
-        val pw2 = callback.gotPassword!!
-        assertFalse(pw.contentEquals(pw2))
-
-        callback.gotPassword = null
-
-        Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
-        assertArrayEquals(pw, callback.gotPassword)
+        val (_, pwBeforeCommit) = Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
+        assertArrayEquals(pw, pwBeforeCommit)
 
         Protocol.commit("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
 
-        callback.gotPassword = null
-
-        Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
-        assertArrayEquals(pw2, callback.gotPassword)
+        val (_, pwAfterCommit) = Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
+        assertArrayEquals(pwChanged, pwAfterCommit)
 
         Protocol.undo("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
 
-        callback.gotPassword = null
-
-        Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
-        assertArrayEquals(pw, callback.gotPassword)
+        val (_, pwAfterUndo) = Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
+        assertArrayEquals(pw, pwAfterUndo)
 
         Protocol.delete("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
         val userList3 = Protocol.list(hostname, cs)
@@ -186,7 +160,7 @@ class ExampleInstrumentedTest {
         assert(userList3.contains(username2))
 
         try {
-            Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs, callback)
+            Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
             fail("ServerFailureException should've been thrown")
         } catch (e: Protocol.ServerFailureException) {
             // success
@@ -227,14 +201,6 @@ private fun processCommand(cmd: String, pw: PrintWriter, cs: Protocol.Credential
         return
     }
 
-    val passwordCallback = object : Protocol.PasswordCallback {
-        override fun passwordReceived(password: CharArray) {
-            pw.println(String(password))
-        }
-
-        override fun ruleReceived(rule: Rule) {}
-    }
-
     try {
         when (parts[0]) {
             "create", "change" -> {
@@ -248,14 +214,15 @@ private fun processCommand(cmd: String, pw: PrintWriter, cs: Protocol.Credential
                         EnumSet.noneOf(CharacterClass::class.java)
                     ) { it.name[0].lowercaseChar() in ccs }
                     val realm = Protocol.Realm(parts[2], parts[3])
-                    if (parts[0] == "create") {
+                    val derived = if (parts[0] == "create") {
                         Protocol.create(
-                            parts[1].toCharArray(), realm, cc, cs, passwordCallback, size)
+                            parts[1].toCharArray(), realm, cc, cs, size)
                     } else {
                         val symbols = if ("s" in ccs) SYMBOL_SET.toSet() else emptySet()
                         Protocol.change(
-                            parts[1].toCharArray(), realm, cc, cs, passwordCallback, symbols, size)
+                            parts[1].toCharArray(), realm, cc, cs, symbols, size)
                     }
+                    pw.println(String(derived))
                 } catch (e: NumberFormatException) {
                     pw.println("Invalid size")
                 }
@@ -266,7 +233,8 @@ private fun processCommand(cmd: String, pw: PrintWriter, cs: Protocol.Credential
                 }
                 val realm = Protocol.Realm(parts[2], parts[3])
                 when (parts[0]) {
-                    "get"    -> Protocol.get(   parts[1].toCharArray(), realm, cs, passwordCallback)
+                    "get"    -> pw.println(String(
+                                   Protocol.get(parts[1].toCharArray(), realm, cs).second))
                     "commit" -> Protocol.commit(parts[1].toCharArray(), realm, cs)
                     "delete" -> Protocol.delete(parts[1].toCharArray(), realm, cs)
                 }
