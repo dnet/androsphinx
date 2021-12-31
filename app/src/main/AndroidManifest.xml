@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     package="org.hsbp.androsphinx">
-
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <queries>
         <package android:name="com.google.zxing.client.android"/>
@@ -70,6 +70,10 @@
                 android:name="android.autofill"
                 android:resource="@xml/service_configuration" />
         </service>
+        <service
+            android:name=".ClipboardCleanerService"
+            android:exported="false"
+            />
     </application>
 
 </manifest>

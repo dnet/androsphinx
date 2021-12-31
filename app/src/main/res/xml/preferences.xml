@@ -39,4 +39,16 @@
         <Preference
             android:key="auto_fill_status"/>
     </PreferenceCategory>
+    <PreferenceCategory android:title="Clipboard">
+        <org.hsbp.androsphinx.IntEditTextPreference
+            android:key="clipboard_cleaner_timeout_seconds"
+            android:selectAllOnFocus="true"
+            android:inputType="numberDecimal"
+            android:digits="0123456789"
+            android:maxLength="3"
+            android:singleLine="true"
+            android:title="@string/preference_clipboard_cleaner_timeout_seconds_title"
+            android:summary="@string/preference_clipboard_cleaner_timeout_seconds_summary"
+            />
+    </PreferenceCategory>
 </PreferenceScreen>

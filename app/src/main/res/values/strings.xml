@@ -66,6 +66,8 @@
     <string name="autofill_not_supported_summary">This could be because of the manufacturer or your employer\'s decision</string>
     <string name="autofill_no_os_feature_title">Your OS doesn\'t support AutoFill</string>
     <string name="autofill_no_os_feature_summary">Try upgrading to a newer OS version</string>
+    <string name="preference_clipboard_cleaner_timeout_seconds_title">Clipboard cleaner timeout in seconds</string>
+    <string name="preference_clipboard_cleaner_timeout_seconds_summary">The amount of time to wait before removing passwords copied to the clipboard (0 = disabled)</string>
     <string name="master_key_overwrite_title">Confirm overwriting secret key</string>
     <string name="master_key_overwrite_msg">This device already has its own SPHINX secret key, which differs from the one scanned from the QR code. If you already stored credentials on this device using this app, those will be inaccessible without a backup. Are you sure you want to overwrite your key with the one from the QR code?</string>
     <string name="overwrite">Overwrite</string>
@@ -81,4 +83,6 @@
     <string name="password_strength_strong">strong</string>
     <string name="password_strength_very_strong">very strong</string>
     <string name="autofill_no_inputs">No suitable inputs were found for SPHINX AutoFill</string>
+    <string name="clipboard_cleaner_notification_title">Password on clipboard</string>
+    <string name="clipboard_cleaner_notification">Password will be removed from the clipboard in %d second(s)</string>
 </resources>

@@ -29,11 +29,13 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.view.autofill.AutofillManager.EXTRA_ASSIST_STRUCTURE
 import android.app.assist.AssistStructure
+import android.os.Parcelable
 import android.service.autofill.Dataset
 import android.service.autofill.FillResponse
 import android.text.format.DateUtils
 import android.view.autofill.AutofillManager
 import android.view.autofill.AutofillValue
+import androidx.core.content.ContextCompat
 import arrow.core.Either
 import com.nulabinc.zxcvbn.Zxcvbn
 import org.hsbp.androsphinx.databinding.ActivityAccountsBinding
@@ -238,6 +240,8 @@ class AccountsActivity : AppCompatActivity() {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clip = ClipData.newPlainText("password", String(pw))
         clipboard.setPrimaryClip(clip)
+        ContextCompat.startForegroundService(this, Intent(this,
+            ClipboardCleanerService::class.java).putExtra(SERVICE_COMMAND, TimerState.START as Parcelable))
     }
 
     inner class DeleteTask(private val masterPassword: CharArray,
