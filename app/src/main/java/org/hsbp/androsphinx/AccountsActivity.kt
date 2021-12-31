@@ -34,6 +34,7 @@ import android.service.autofill.FillResponse
 import android.text.format.DateUtils
 import android.view.autofill.AutofillManager
 import android.view.autofill.AutofillValue
+import arrow.core.Either
 import com.nulabinc.zxcvbn.Zxcvbn
 import org.hsbp.androsphinx.databinding.ActivityAccountsBinding
 import kotlin.math.roundToLong
@@ -47,27 +48,29 @@ class AccountsActivity : AppCompatActivity() {
     private var autoFill = false
     private lateinit var binding: ActivityAccountsBinding
 
-    inner class UpdateUserListTask(private val hostname: String) : AsyncTask<Void, Void, Exception?>() {
-
-        private var users: Set<String> = emptySet()
+    inner class UpdateUserListTask(private val hostname: String) : AsyncTask<Void, Void, Either<Throwable, Set<String>>>() {
 
         override fun onPreExecute() {
             binding.accounts.pullToRefresh.isRefreshing = true
         }
 
-        override fun doInBackground(vararg p0: Void?): Exception? {
-            return try {
-                users = Protocol.list(hostname, cs)
-                null
-            } catch (e: Exception) {
-                e
-            }
-        }
+        override fun doInBackground(vararg p0: Void?): Either<Throwable, Set<String>> =
+            Either.catch { Protocol.list(hostname, cs) }
 
-        override fun onPostExecute(result: Exception?) {
+        override fun onPostExecute(result: Either<Throwable, Set<String>>) {
             binding.accounts.pullToRefresh.isRefreshing = false
+
             when (result) {
-                null -> {
+                is Either.Left ->
+                    when (result.value) {
+                        is Protocol.ServerFailureException -> handleError(R.string.server_error_title)
+                        is SodiumException -> handleError(R.string.sodium_error_title)
+                        is UnknownVersionException -> handleError(R.string.unknown_version_title)
+                        is IOException -> handleError(R.string.io_error_title)
+                        else -> handleError(R.string.unknown_error_title)
+                    }
+                is Either.Right -> {
+                    val users = result.value
                     val objects = if (users.isEmpty()) {
                         binding.accounts.userList.announceForAccessibility(getString(R.string.no_users_for_host))
                         arrayOf(UserProxy(null))
@@ -77,11 +80,6 @@ class AccountsActivity : AppCompatActivity() {
                     binding.accounts.userList.adapter =
                         ArrayAdapter(this@AccountsActivity, android.R.layout.simple_list_item_1, objects)
                 }
-                is Protocol.ServerFailureException -> handleError(R.string.server_error_title)
-                is SodiumException -> handleError(R.string.sodium_error_title)
-                is UnknownVersionException -> handleError(R.string.unknown_version_title)
-                is IOException -> handleError(R.string.io_error_title)
-                else -> handleError(R.string.unknown_error_title)
             }
         }
 
@@ -94,13 +92,7 @@ class AccountsActivity : AppCompatActivity() {
         }
     }
 
-    abstract inner class UserTask(private val feedbackLabel: TextView) : AsyncTask<Void, Void, Exception?>() {
-        private var passwordReceived: CharArray? = null
-
-        fun passwordReceived(password: CharArray) {
-            passwordReceived = password
-        }
-
+    abstract inner class UserTask(private val feedbackLabel: TextView) : AsyncTask<Void, Void, Either<Throwable, CharArray>>() {
         fun updateLabel(message: Int) {
             val string = getString(message)
             feedbackLabel.text = string
@@ -111,34 +103,24 @@ class AccountsActivity : AppCompatActivity() {
             updateLabel(R.string.connecting_to_server)
         }
 
-        override fun doInBackground(vararg p0: Void?): Exception? {
-            return try {
-                run()
-                null
-            } catch (e: Exception) {
-                e
-            }
-        }
+        override fun doInBackground(vararg p0: Void?): Either<Throwable, CharArray> =
+            Either.catch(this::run)
 
-        abstract fun run()
+        abstract fun run(): CharArray
         abstract fun handlePassword(pw: CharArray)
 
-        override fun onPostExecute(result: Exception?) {
+        override fun onPostExecute(result: Either<Throwable, CharArray>) {
             when (result) {
-                null -> {
-                    val pw = passwordReceived
-                    if (pw == null) {
-                        handleError(R.string.internal_error_title)
-                    } else {
-                        handlePassword(pw)
+                is Either.Left ->
+                    when (result.value) {
+                        is Protocol.ServerFailureException -> handleError(R.string.server_error_password_title)
+                        is SodiumException -> handleError(R.string.sodium_error_title)
+                        is Protocol.CheckDigitMismatchException -> handleError(R.string.check_digit_mismatch_title)
+                        is UnknownVersionException -> handleError(R.string.unknown_version_title)
+                        is IOException -> handleError(R.string.io_error_title)
+                        else -> handleError(R.string.unknown_error_title)
                     }
-                }
-                is Protocol.ServerFailureException -> handleError(R.string.server_error_password_title)
-                is SodiumException -> handleError(R.string.sodium_error_title)
-                is Protocol.CheckDigitMismatchException -> handleError(R.string.check_digit_mismatch_title)
-                is UnknownVersionException -> handleError(R.string.unknown_version_title)
-                is IOException -> handleError(R.string.io_error_title)
-                else -> handleError(R.string.unknown_error_title)
+                is Either.Right -> handlePassword(result.value)
             }
         }
 
@@ -180,7 +162,7 @@ class AccountsActivity : AppCompatActivity() {
                              private val alertDialog: AlertDialog,
                              feedbackLabel: TextView) : UserTask(feedbackLabel) {
 
-        override fun run() = passwordReceived(Protocol.get(masterPassword, realm, cs).second)
+        override fun run() = Protocol.get(masterPassword, realm, cs).second
 
         override fun handlePassword(pw: CharArray) {
             copyPasswordToClipboard(pw)
@@ -191,34 +173,64 @@ class AccountsActivity : AppCompatActivity() {
 
     inner class ChangeTask(private val masterPassword: CharArray,
                            private val realm: Protocol.Realm,
-                           feedbackLabel: TextView) : CopyUpdateTask(feedbackLabel, R.string.password_change_mode) {
+                           feedbackLabel: TextView) : UserTask(feedbackLabel) {
 
-        override fun run() {
+        override fun run(): CharArray {
             val masterPasswordClone = masterPassword.clone()
             val (r, _) = Protocol.get(masterPassword, realm, cs)
-            Protocol.change(masterPasswordClone, realm, r.charClasses, cs, r.symbols, r.size.toInt())
+            return Protocol.change(masterPasswordClone, realm, r.charClasses, cs, r.symbols, r.size.toInt())
+        }
+
+        override fun handlePassword(pw: CharArray) {
+            copyPasswordToClipboard(pw)
+            updateLabel(R.string.password_change_mode)
         }
     }
 
     inner class UndoTask(private val masterPassword: CharArray,
                            private val realm: Protocol.Realm,
-                           feedbackLabel: TextView) : CopyUpdateTask(feedbackLabel, R.string.old_password_copied_to_clipboard) {
+                           feedbackLabel: TextView) : UndoCommitTask(feedbackLabel, R.string.old_password_copied_to_clipboard) {
 
         override fun run() = Protocol.undo(masterPassword, realm, cs)
     }
 
     inner class CommitTask(private val masterPassword: CharArray,
                            private val realm: Protocol.Realm,
-                           feedbackLabel: TextView) : CopyUpdateTask(feedbackLabel, R.string.new_password_copied_to_clipboard) {
+                           feedbackLabel: TextView) : UndoCommitTask(feedbackLabel, R.string.new_password_copied_to_clipboard) {
 
         override fun run() = Protocol.commit(masterPassword, realm, cs)
     }
 
-    abstract inner class CopyUpdateTask(feedbackLabel: TextView,
-                                        private val successMessage: Int) : UserTask(feedbackLabel) {
-        override fun handlePassword(pw: CharArray) {
-            copyPasswordToClipboard(pw)
-            updateLabel(successMessage)
+    abstract inner class UndoCommitTask(private val feedbackLabel: TextView,
+                                        private val successMessage: Int) : AsyncTask<Void, Void, Either<Throwable, Unit>>() {
+        private fun updateLabel(message: Int) {
+            val string = getString(message)
+            feedbackLabel.text = string
+            feedbackLabel.announceForAccessibility(string)
+        }
+
+        override fun onPreExecute() {
+            updateLabel(R.string.connecting_to_server)
+        }
+
+        override fun doInBackground(vararg p0: Void?): Either<Throwable, Unit> =
+            Either.catch(this::run)
+
+        abstract fun run()
+
+        override fun onPostExecute(result: Either<Throwable, Unit>) {
+            when (result) {
+                is Either.Left ->
+                    when (result.value) {
+                        is Protocol.ServerFailureException -> updateLabel(R.string.server_error_password_title)
+                        is SodiumException -> updateLabel(R.string.sodium_error_title)
+                        is Protocol.CheckDigitMismatchException -> updateLabel(R.string.check_digit_mismatch_title)
+                        is UnknownVersionException -> updateLabel(R.string.unknown_version_title)
+                        is IOException -> updateLabel(R.string.io_error_title)
+                        else -> updateLabel(R.string.unknown_error_title)
+                    }
+                is Either.Right -> updateLabel(successMessage)
+            }
         }
     }
 
@@ -231,51 +243,63 @@ class AccountsActivity : AppCompatActivity() {
     inner class DeleteTask(private val masterPassword: CharArray,
                            private val realm: Protocol.Realm,
                            private val alertDialog: AlertDialog,
-                           feedbackLabel: TextView) : UserTask(feedbackLabel) {
+                           private val feedbackLabel: TextView) : AsyncTask<Void, Void, Either<Throwable, Unit>>() {
 
-        override fun run() {
-            Protocol.delete(masterPassword, realm, cs)
+        private fun updateLabel(message: Int) {
+            val string = getString(message)
+            feedbackLabel.text = string
+            feedbackLabel.announceForAccessibility(string)
         }
 
-        override fun handlePassword(pw: CharArray) {
-            showSnackbar(R.string.user_deleted)
-            alertDialog.dismiss()
-            updateUserList(realm.hostname)
+        override fun onPreExecute() {
+            updateLabel(R.string.connecting_to_server)
+        }
+
+        override fun doInBackground(vararg p0: Void?): Either<Throwable, Unit> =
+            Either.catch { Protocol.delete(masterPassword, realm, cs) }
+
+        override fun onPostExecute(result: Either<Throwable, Unit>) {
+            when (result) {
+                is Either.Left ->
+                    when (result.value) {
+                        is Protocol.ServerFailureException -> updateLabel(R.string.server_error_password_title)
+                        is SodiumException -> updateLabel(R.string.sodium_error_title)
+                        is Protocol.CheckDigitMismatchException -> updateLabel(R.string.check_digit_mismatch_title)
+                        is UnknownVersionException -> updateLabel(R.string.unknown_version_title)
+                        is IOException -> updateLabel(R.string.io_error_title)
+                        else -> updateLabel(R.string.unknown_error_title)
+                    }
+                is Either.Right -> {
+                    showSnackbar(R.string.user_deleted)
+                    alertDialog.dismiss()
+                    updateUserList(realm.hostname)
+                }
+            }
         }
     }
 
     inner class CreateTask(private val masterPassword: CharArray, private val realm: Protocol.Realm,
                      private val charClasses: Set<CharacterClass>,
-                     private val size: Int) : AsyncTask<Void, Void, Exception?>() {
+                     private val size: Int) : AsyncTask<Void, Void, Either<Throwable, CharArray>>() {
 
-        private var passwordReceived: CharArray? = null
+        override fun doInBackground(vararg p0: Void?): Either<Throwable, CharArray> =
+            Either.catch { Protocol.create(masterPassword, realm, charClasses, cs, size) }
 
-        override fun doInBackground(vararg p0: Void?): Exception? {
-            return try {
-                passwordReceived = Protocol.create(masterPassword, realm, charClasses, cs, size)
-                null
-            } catch (e: Exception) {
-                e
-            }
-        }
-
-        override fun onPostExecute(result: Exception?) {
+        override fun onPostExecute(result: Either<Throwable, CharArray>) {
             when (result) {
-                null -> {
-                    val pw = passwordReceived
-                    if (pw == null) {
-                        handleError(R.string.internal_error_title)
-                    } else {
-                        updateUserList(realm.hostname)
-                        copyPasswordToClipboard(pw)
-                        Snackbar.make(binding.fab, R.string.password_copied_to_clipboard, Snackbar.LENGTH_LONG).show()
+                is Either.Left ->
+                    when (result.value) {
+                        is Protocol.ServerFailureException -> handleError(R.string.server_error_title)
+                        is SodiumException -> handleError(R.string.sodium_error_title)
+                        is UnknownVersionException -> handleError(R.string.unknown_version_title) // because of user list update
+                        is IOException -> handleError(R.string.io_error_title)
+                        else -> handleError(R.string.unknown_error_title)
                     }
+                is Either.Right -> {
+                    updateUserList(realm.hostname)
+                    copyPasswordToClipboard(result.value)
+                    showSnackbar(R.string.password_copied_to_clipboard)
                 }
-                is Protocol.ServerFailureException -> handleError(R.string.server_error_title)
-                is SodiumException -> handleError(R.string.sodium_error_title)
-                is UnknownVersionException -> handleError(R.string.unknown_version_title) // beacuse of user list update
-                is IOException -> handleError(R.string.io_error_title)
-                else -> handleError(R.string.unknown_error_title)
             }
         }
 

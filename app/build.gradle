@@ -43,6 +43,7 @@ dependencies {
     implementation "androidx.security:security-crypto:1.0.0"
     implementation 'com.commonsware.cwac:security:0.8.0'
     implementation 'com.nulab-inc:zxcvbn:1.5.2'
+    implementation("io.arrow-kt:arrow-core:1.0.1")
 }
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile) {
     kotlinOptions {
