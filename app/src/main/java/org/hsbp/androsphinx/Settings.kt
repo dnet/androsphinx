@@ -143,10 +143,10 @@ class SettingsFragment : PreferenceFragmentCompat(), Preference.OnPreferenceClic
     @SuppressLint("MissingSuperCall")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == IntentIntegrator.REQUEST_CODE) {
-            val ir = IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
-            val info = ByteBuffer.wrap(ir.byteSegments0).order(ByteOrder.BIG_ENDIAN)
-
             try {
+                val ir = IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
+                val info = ByteBuffer.wrap(ir.byteSegments0).order(ByteOrder.BIG_ENDIAN)
+
                 val formatFlags = info.get().toInt()
                 val masterKey = if (formatFlags and QR_FLAGS_HAS_KEY == QR_FLAGS_HAS_KEY) {
                     MasterKey.fromByteBuffer(info)
