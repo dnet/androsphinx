@@ -61,7 +61,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.preferences, rootKey)
         preferenceManager.findPreference<Preference>("scan_qr")!!.setOnPreferenceClickListener {
-            IntentIntegrator(this).initiateScan()
+            IntentIntegrator(this).initiateScan(IntentIntegrator.QR_CODE_TYPES)
             true
         }
         ShareType.values().forEach { t ->
