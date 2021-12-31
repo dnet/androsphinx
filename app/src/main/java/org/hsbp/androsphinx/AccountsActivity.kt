@@ -20,7 +20,6 @@ import androidx.core.widget.addTextChangedListener
 import com.commonsware.cwac.security.flagsecure.FlagSecureHelper
 import com.google.android.material.snackbar.Snackbar
 import java.io.IOException
-import java.lang.Exception
 import java.net.MalformedURLException
 import java.net.URL
 import java.util.*
