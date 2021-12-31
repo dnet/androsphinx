@@ -26,7 +26,6 @@ import android.os.Build
 import android.provider.Settings
 import android.view.autofill.AutofillManager
 import android.widget.ImageView
-import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.getSystemService
