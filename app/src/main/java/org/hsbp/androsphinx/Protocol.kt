@@ -86,14 +86,14 @@ class Protocol {
                     updateUserList(s, cs, realm) { users -> users + realm.username }
                 }
 
-                val rwd = BigInteger(POSITIVE, Context.PASSWORD.foldHash(newRwd)).xor(rule.xorMask)
+                val rwd = BigInteger(POSITIVE, DerivationContext.PASSWORD.foldHash(newRwd)).xor(rule.xorMask)
                 rule to CharacterClass.derive(rwd, rule.charClasses, rule.size.toInt(), rule.symbols)
             }!!
         }
     }
 
     data class Realm(val username: String, val hostname: String) {
-        fun hash(cs: CredentialStore) = Sodium.genericHash("$username|$hostname".toByteArray(), cs.key.foldHash(Context.SALT))
+        fun hash(cs: CredentialStore) = Sodium.genericHash("$username|$hostname".toByteArray(), cs.key.foldHash(DerivationContext.SALT))
 
         val withoutUser: Realm
             get() = Realm(username = "", hostname = hostname)
@@ -122,7 +122,7 @@ class Protocol {
         }
 
         fun calculateCheckDigit(rwd: ByteArray): BigInteger {
-            return BigInteger(POSITIVE, Context.CHECK_DIGIT.foldHash(rwd))
+            return BigInteger(POSITIVE, DerivationContext.CHECK_DIGIT.foldHash(rwd))
         }
 
         fun get(password: CharArray, realm: Realm, cs: CredentialStore): Pair<Rule, CharArray> {
@@ -247,10 +247,10 @@ private fun InputStream.readExactly(length: Int): ByteArray {
 }
 
 fun Protocol.CredentialStore.getSignKey(id: ByteArray, rwd: ByteArray? = null): Ed25519PrivateKey =
-    Ed25519PrivateKey.fromSeed(key.foldHash(Context.SIGNING, id, if (rwdKeys) rwd else null))
+    Ed25519PrivateKey.fromSeed(key.foldHash(DerivationContext.SIGNING, id, if (rwdKeys) rwd else null))
 
 fun Protocol.CredentialStore.getSealKey(): AeadKey =
-    AeadKey.fromByteArray(key.foldHash(Context.ENCRYPTION))
+    AeadKey.fromByteArray(key.foldHash(DerivationContext.ENCRYPTION))
 
 fun Protocol.CredentialStore.auth(socket: Socket, hostId: ByteArray, rwd: ByteArray? = null) {
     val nonce = socket.getInputStream().readExactly(AUTH_NONCE_BYTES)

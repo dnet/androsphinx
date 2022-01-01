@@ -11,7 +11,7 @@ class SodiumException(message: String) : RuntimeException(message)
 
 const val MASTER_KEY_BYTES = 32
 
-enum class Context(private val value: String, private val hashLength: Int = CRYPTO_GENERICHASH_BYTES) {
+enum class DerivationContext(private val value: String, private val hashLength: Int = CRYPTO_GENERICHASH_BYTES) {
     SIGNING("sphinx signing key"),
     ENCRYPTION("sphinx encryption key"),
     SALT("sphinx host salt"),
@@ -40,7 +40,7 @@ inline class MasterKey(private val bytes: ByteArray) {
 
     fun contentEquals(other: MasterKey) = other.bytes.contentEquals(bytes)
 
-    fun foldHash(context: Context, vararg messages: ByteArray?): ByteArray =
+    fun foldHash(context: DerivationContext, vararg messages: ByteArray?): ByteArray =
         context.foldHash(*(listOf(asBytes) + messages.filterNotNull().toList()).toTypedArray())
 
     val asBytes: ByteArray
