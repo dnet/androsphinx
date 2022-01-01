@@ -22,12 +22,15 @@ enum class CharacterClass(private val bit: Int, internal val range: Set<Char>?, 
                 it.range != null && serialized.testBit(it.bit)
             }
 
-        fun derive(rwd: BigInteger, rule: Set<CharacterClass>, size: Int, syms: Set<Char> = SYMBOL_SET.toSet()): CharArray {
+        fun derive(rwd: BigInteger, rule: Set<CharacterClass>, size: Int, syms: Set<Char> = SYMBOL_SET.toSet()): String {
             require(rule.isNotEmpty() || syms.isNotEmpty()) { "At least one character class or symbol must be allowed." }
             val order = arrayOf(UPPER, LOWER, DIGITS)
             val chars = order.filter(rule::contains).flatMap { it.range!!.sorted() }.toList() + syms.sorted()
             val password = encode(rwd, chars, size)
-            return if (size > 0) subArrayWithCleaning(password, size) else password
+            val result = if (size > 0) subArrayWithCleaning(password, size) else password
+            val str = String(result)
+            result.fill('\u0000')
+            return str
         }
 
         private fun encode(raw: BigInteger, chars: List<Char>, size: Int): CharArray {

@@ -121,7 +121,7 @@ class ExampleInstrumentedTest {
         assert(Protocol.list(hostname, cs).isEmpty())
 
         val pw = Protocol.create("sphinxNetworkTestMasterPassword".toCharArray(), realm, charClasses, cs, size)
-        assertEquals(size, pw.size)
+        assertEquals(size, pw.length)
         assert(pw.all { pwChar -> charClasses.any { it.range?.contains(pwChar) ?: false } })
         val userList = Protocol.list(hostname, cs)
         assertEquals(1, userList.size)
@@ -134,7 +134,7 @@ class ExampleInstrumentedTest {
         assert(userList2.contains(username2))
 
         val (gr, pwGet) = Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
-        assertArrayEquals(pw, pwGet)
+        assertEquals(pw, pwGet)
         assertEquals(gr.charClasses, charClasses)
         assertEquals(gr.size.toInt(), size)
 
@@ -142,17 +142,17 @@ class ExampleInstrumentedTest {
         assertFalse(pwChanged.contentEquals(pwGet))
 
         val (_, pwBeforeCommit) = Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
-        assertArrayEquals(pw, pwBeforeCommit)
+        assertEquals(pw, pwBeforeCommit)
 
         Protocol.commit("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
 
         val (_, pwAfterCommit) = Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
-        assertArrayEquals(pwChanged, pwAfterCommit)
+        assertEquals(pwChanged, pwAfterCommit)
 
         Protocol.undo("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
 
         val (_, pwAfterUndo) = Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
-        assertArrayEquals(pw, pwAfterUndo)
+        assertEquals(pw, pwAfterUndo)
 
         Protocol.delete("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
         val userList3 = Protocol.list(hostname, cs)
@@ -222,7 +222,7 @@ private fun processCommand(cmd: String, pw: PrintWriter, cs: Protocol.Credential
                         Protocol.change(
                             parts[1].toCharArray(), realm, cc, cs, symbols, size)
                     }
-                    pw.println(String(derived))
+                    pw.println(derived)
                 } catch (e: NumberFormatException) {
                     pw.println("Invalid size")
                 }
@@ -233,8 +233,8 @@ private fun processCommand(cmd: String, pw: PrintWriter, cs: Protocol.Credential
                 }
                 val realm = Protocol.Realm(parts[2], parts[3])
                 when (parts[0]) {
-                    "get"    -> pw.println(String(
-                                   Protocol.get(parts[1].toCharArray(), realm, cs).second))
+                    "get"    -> pw.println(
+                                   Protocol.get(parts[1].toCharArray(), realm, cs).second)
                     "commit" -> Protocol.commit(parts[1].toCharArray(), realm, cs)
                     "delete" -> Protocol.delete(parts[1].toCharArray(), realm, cs)
                 }

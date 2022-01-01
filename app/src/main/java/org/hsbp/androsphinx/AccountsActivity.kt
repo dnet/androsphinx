@@ -93,7 +93,7 @@ class AccountsActivity : AppCompatActivity() {
         }
     }
 
-    abstract inner class UserTask(private val feedbackLabel: TextView) : AsyncTask<Void, Void, Either<Throwable, CharArray>>() {
+    abstract inner class UserTask(private val feedbackLabel: TextView) : AsyncTask<Void, Void, Either<Throwable, String>>() {
         fun updateLabel(message: Int) {
             val string = getString(message)
             feedbackLabel.text = string
@@ -104,13 +104,13 @@ class AccountsActivity : AppCompatActivity() {
             updateLabel(R.string.connecting_to_server)
         }
 
-        override fun doInBackground(vararg p0: Void?): Either<Throwable, CharArray> =
+        override fun doInBackground(vararg p0: Void?): Either<Throwable, String> =
             Either.catch(this::run)
 
-        abstract fun run(): CharArray
-        abstract fun handlePassword(pw: CharArray)
+        abstract fun run(): String
+        abstract fun handlePassword(pw: String)
 
-        override fun onPostExecute(result: Either<Throwable, CharArray>) {
+        override fun onPostExecute(result: Either<Throwable, String>) {
             when (result) {
                 is Either.Left ->
                     when (result.value) {
@@ -139,7 +139,7 @@ class AccountsActivity : AppCompatActivity() {
                              private val realm: Protocol.Realm,
                              private val alertDialog: AlertDialog,
                              feedbackLabel: TextView) : GenerateTask(masterPassword, realm, alertDialog, feedbackLabel) {
-        override fun handlePassword(pw: CharArray) {
+        override fun handlePassword(pw: String) {
             val structure: AssistStructure = intent.getParcelableExtra(EXTRA_ASSIST_STRUCTURE)!!
             val result = SphinxAutofillService.ParseResult()
             SphinxAutofillService.parse(structure.getWindowNodeAt(0).rootViewNode, result)
@@ -149,7 +149,7 @@ class AccountsActivity : AppCompatActivity() {
                 }
             val b = Dataset.Builder(remoteView)
             result.usernames.filterNotNull().forEach { b.setValue(it, AutofillValue.forText(realm.username)) }
-            result.passwords.filterNotNull().forEach { b.setValue(it, AutofillValue.forText(String(pw))) }
+            result.passwords.filterNotNull().forEach { b.setValue(it, AutofillValue.forText(pw)) }
             val fr = FillResponse.Builder().addDataset(b.build()).build()
             val reply = Intent().putExtra(AutofillManager.EXTRA_AUTHENTICATION_RESULT, fr)
             setResult(Activity.RESULT_OK, reply)
@@ -165,7 +165,7 @@ class AccountsActivity : AppCompatActivity() {
 
         override fun run() = Protocol.get(masterPassword, realm, cs).second
 
-        override fun handlePassword(pw: CharArray) {
+        override fun handlePassword(pw: String) {
             copyPasswordToClipboard(pw)
             showSnackbar(R.string.password_copied_to_clipboard)
             alertDialog.dismiss()
@@ -176,13 +176,13 @@ class AccountsActivity : AppCompatActivity() {
                            private val realm: Protocol.Realm,
                            feedbackLabel: TextView) : UserTask(feedbackLabel) {
 
-        override fun run(): CharArray {
+        override fun run(): String {
             val masterPasswordClone = masterPassword.clone()
             val (r, _) = Protocol.get(masterPassword, realm, cs)
             return Protocol.change(masterPasswordClone, realm, r.charClasses, cs, r.symbols, r.size.toInt())
         }
 
-        override fun handlePassword(pw: CharArray) {
+        override fun handlePassword(pw: String) {
             copyPasswordToClipboard(pw)
             updateLabel(R.string.password_change_mode)
         }
@@ -235,9 +235,9 @@ class AccountsActivity : AppCompatActivity() {
         }
     }
 
-    private fun copyPasswordToClipboard(pw: CharArray) {
+    private fun copyPasswordToClipboard(pw: String) {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("password", String(pw))
+        val clip = ClipData.newPlainText("password", pw)
         clipboard.setPrimaryClip(clip)
         ContextCompat.startForegroundService(this, Intent(this,
             ClipboardCleanerService::class.java).putExtra(SERVICE_COMMAND, TimerState.START as Parcelable))
@@ -283,12 +283,12 @@ class AccountsActivity : AppCompatActivity() {
 
     inner class CreateTask(private val masterPassword: CharArray, private val realm: Protocol.Realm,
                      private val charClasses: Set<CharacterClass>,
-                     private val size: Int) : AsyncTask<Void, Void, Either<Throwable, CharArray>>() {
+                     private val size: Int) : AsyncTask<Void, Void, Either<Throwable, String>>() {
 
-        override fun doInBackground(vararg p0: Void?): Either<Throwable, CharArray> =
+        override fun doInBackground(vararg p0: Void?): Either<Throwable, String> =
             Either.catch { Protocol.create(masterPassword, realm, charClasses, cs, size) }
 
-        override fun onPostExecute(result: Either<Throwable, CharArray>) {
+        override fun onPostExecute(result: Either<Throwable, String>) {
             when (result) {
                 is Either.Left ->
                     when (result.value) {

@@ -58,7 +58,7 @@ class Protocol {
         }
 
         fun execute(realm: Realm, password: CharArray, cs: CredentialStore,
-                    createRule: Rule? = null): Pair<Rule, CharArray> {
+                    createRule: Rule? = null): Pair<Rule, String> {
             val hostId = realm.hash(cs)
             val challenge = if (requiresAuth) Sphinx.Challenge(password.clone()) else null
 
@@ -112,7 +112,7 @@ class Protocol {
     companion object {
 
         fun create(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
-                   cs: CredentialStore, size: Int = 0): CharArray {
+                   cs: CredentialStore, size: Int = 0): String {
             require(charClasses.isNotEmpty()) { "At least one character class must be allowed." }
             val symbols = if (charClasses.contains(CharacterClass.SYMBOLS)) SYMBOL_SET.toSet() else emptySet() // TODO allow fine-grain control
             val xorMask = BigInteger.ZERO // TODO add support for non-zero xorMask creation
@@ -125,12 +125,12 @@ class Protocol {
             return BigInteger(POSITIVE, DerivationContext.CHECK_DIGIT.foldHash(rwd))
         }
 
-        fun get(password: CharArray, realm: Realm, cs: CredentialStore): Pair<Rule, CharArray> {
+        fun get(password: CharArray, realm: Realm, cs: CredentialStore): Pair<Rule, String> {
             return Command.GET.execute(realm, password, cs)
         }
 
         fun change(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
-                   cs: CredentialStore, symbols: Set<Char>, size: Int = 0): CharArray {
+                   cs: CredentialStore, symbols: Set<Char>, size: Int = 0): String {
             require(charClasses.isNotEmpty() || symbols.isNotEmpty()) { "At least one character class or symbol must be allowed." }
             val xorMask = BigInteger.ZERO // TODO add support for non-zero xorMask creation
             val rule = Rule(charClasses, symbols, size.toBigInteger(), xorMask)
