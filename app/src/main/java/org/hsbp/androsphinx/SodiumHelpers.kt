@@ -22,7 +22,8 @@ enum class DerivationContext(private val value: String, private val hashLength: 
         messages.fold(value.toByteArray()) { acc, message -> genericHash(acc, message, hashLength) }
 }
 
-inline class MasterKey(private val bytes: ByteArray) {
+@JvmInline
+value class MasterKey(private val bytes: ByteArray) {
     companion object {
         fun generate(): MasterKey = MasterKey(Sodium.randomBytes(MASTER_KEY_BYTES))
 
@@ -47,7 +48,8 @@ inline class MasterKey(private val bytes: ByteArray) {
         get() = bytes
 }
 
-inline class Ed25519PrivateKey(val key: ByteArray) {
+@JvmInline
+value class Ed25519PrivateKey(val key: ByteArray) {
     companion object {
         fun fromSeed(seed: ByteArray): Ed25519PrivateKey {
             require(seed.size == CRYPTO_SIGN_SEEDBYTES) { "Invalid seed size" }
@@ -69,7 +71,8 @@ inline class Ed25519PrivateKey(val key: ByteArray) {
 
 private val VERSION: ByteArray = byteArrayOf(0)
 
-inline class AeadKey(private val key: ByteArray) {
+@JvmInline
+value class AeadKey(private val key: ByteArray) {
     companion object {
         fun fromByteArray(value: ByteArray): AeadKey {
             require(value.size == CRYPTO_AEAD_XCHACHA20POLY1305_IETF_KEYBYTES) { "Invalid key size" }
