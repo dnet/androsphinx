@@ -85,4 +85,19 @@
     <string name="autofill_no_inputs">No suitable inputs were found for SPHINX AutoFill</string>
     <string name="clipboard_cleaner_notification_title">Password on clipboard</string>
     <string name="clipboard_cleaner_notification">Password will be removed from the clipboard in %d second(s)</string>
+    <string name="main_welcome_title">Welcome</string>
+    <string name="main_intro_text">Androsphinx lets you
+        \n • generate strong passwords and
+        \n • synchronize them between all your devices.
+        \n
+        \nTo configure a SPHINX server, pair your device to a desktop computer running SPHINX or set up AutoFill, tap ⚙️ above.
+        \n
+        \nTo generate or retrieve passwords, you have three options:
+        \n
+        \n1. Set up AutoFill and use a compatible browser
+        \n
+        \n2. Use the Share option in your browser and choose Androsphinx as the target
+        \n
+        \n3. Tap 🔍 in the top bar and enter the domain name
+    </string>
 </resources>
