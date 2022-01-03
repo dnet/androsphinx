@@ -120,14 +120,15 @@ class ExampleInstrumentedTest {
 
         assert(Protocol.list(hostname, cs).isEmpty())
 
-        val pw = Protocol.create("sphinxNetworkTestMasterPassword".toCharArray(), realm, charClasses, cs, size)
+        val symbolSet = SYMBOL_SET.substring(0 .. SYMBOL_SET.length / 2).toSet()
+        val pw = Protocol.create("sphinxNetworkTestMasterPassword".toCharArray(), realm, charClasses, cs, symbolSet, size)
         assertEquals(size, pw.length)
-        assert(pw.all { pwChar -> charClasses.any { it.range?.contains(pwChar) ?: false } })
+        assert(pw.all { pwChar -> charClasses.any { it.range?.contains(pwChar) ?: false } or (pwChar in symbolSet) })
         val userList = Protocol.list(hostname, cs)
         assertEquals(1, userList.size)
         assert(userList.contains(username))
 
-        Protocol.create("sphinxNetworkTestMasterPassword2".toCharArray(), realm2, charClasses, cs, size)
+        Protocol.create("sphinxNetworkTestMasterPassword2".toCharArray(), realm2, charClasses, cs, symbolSet, size)
         val userList2 = Protocol.list(hostname, cs)
         assertEquals(2, userList2.size)
         assert(userList2.contains(username))
@@ -217,7 +218,7 @@ private fun processCommand(cmd: String, pw: PrintWriter, cs: Protocol.Credential
                     val symbols = if ('s' in ccs) SYMBOL_SET.toSet() else emptySet()
                     val derived = if (parts[0] == "create") {
                         Protocol.create(
-                            parts[1].toCharArray(), realm, cc, cs, size)
+                            parts[1].toCharArray(), realm, cc, cs, symbols, size)
                     } else {
                         Protocol.change(
                             parts[1].toCharArray(), realm, cc, cs, symbols, size)

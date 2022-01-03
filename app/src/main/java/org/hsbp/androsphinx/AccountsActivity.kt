@@ -28,6 +28,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.view.autofill.AutofillManager.EXTRA_ASSIST_STRUCTURE
 import android.app.assist.AssistStructure
+import android.graphics.Typeface
 import android.os.Parcelable
 import android.service.autofill.Dataset
 import android.service.autofill.FillResponse
@@ -35,6 +36,8 @@ import android.text.format.DateUtils
 import android.view.autofill.AutofillManager
 import android.view.autofill.AutofillValue
 import androidx.core.content.ContextCompat
+import androidx.core.view.setPadding
+import androidx.core.view.updateLayoutParams
 import arrow.core.Either
 import com.nulabinc.zxcvbn.Zxcvbn
 import org.hsbp.androsphinx.databinding.ActivityAccountsBinding
@@ -42,6 +45,7 @@ import kotlin.math.roundToLong
 
 @Suppress("SpellCheckingInspection")
 const val EXTRA_ACCOUNTS_AUTOFILL = "org.hsbp.androsphinx.AccountsActivity.EXTRA_ACCOUNTS_AUTOFILL"
+private const val SYMBOL_PICKER_COLUMNS: Int = 4
 
 class AccountsActivity : AppCompatActivity() {
 
@@ -282,11 +286,11 @@ class AccountsActivity : AppCompatActivity() {
     }
 
     inner class CreateTask(private val masterPassword: CharArray, private val realm: Protocol.Realm,
-                     private val charClasses: Set<CharacterClass>,
-                     private val size: Int) : AsyncTask<Void, Void, Either<Throwable, String>>() {
+                           private val charClasses: Set<CharacterClass>, private var symbols: Set<Char>,
+                           private val size: Int) : AsyncTask<Void, Void, Either<Throwable, String>>() {
 
         override fun doInBackground(vararg p0: Void?): Either<Throwable, String> =
-            Either.catch { Protocol.create(masterPassword, realm, charClasses, cs, size) }
+            Either.catch { Protocol.create(masterPassword, realm, charClasses, cs, symbols, size) }
 
         override fun onPostExecute(result: Either<Throwable, String>) {
             when (result) {
@@ -308,7 +312,7 @@ class AccountsActivity : AppCompatActivity() {
 
         private fun handleError(message: Int) {
             Snackbar.make(binding.fab, message, Snackbar.LENGTH_LONG).setAction(R.string.retry) {
-                CreateTask(masterPassword, realm, charClasses, size).execute()
+                CreateTask(masterPassword, realm, charClasses, symbols, size).execute()
             }.show()
         }
     }
@@ -355,6 +359,10 @@ class AccountsActivity : AppCompatActivity() {
         }
     }
 
+    private val defaultSymbolSet: Set<Char> by lazy {
+        SYMBOL_SET.toSortedSet()
+    }
+
     private fun addUser(hostname: String, view: View) {
         if (!cs.isSetUpForCommunication) {
             Snackbar.make(view, R.string.no_server_setup, Snackbar.LENGTH_LONG).setAction(R.string.open_settings) {
@@ -363,6 +371,7 @@ class AccountsActivity : AppCompatActivity() {
             return
         }
 
+        val symbols = defaultSymbolSet.toMutableSet()
         val linearLayout = LinearLayout(this)
         linearLayout.orientation = LinearLayout.VERTICAL
         val username = EditText(this)
@@ -382,6 +391,10 @@ class AccountsActivity : AppCompatActivity() {
                 linearLayout.addView(cb)
                 cb
             } as Map<CharacterClass, CheckBox>
+        val symbolButton = Button(this).apply {
+            setText(R.string.custom_symbol_set_picker_title)
+        }
+        linearLayout.addView(symbolButton)
         val masterPasswords =
             arrayOf(R.string.master_password, R.string.master_password_confirm).map { hint ->
                 val et = EditText(this)
@@ -402,7 +415,8 @@ class AccountsActivity : AppCompatActivity() {
                 val realm = Protocol.Realm(username.text.toString(), hostname)
                 val pw = masterPasswords[0].text.asCharArray
                 masterPasswords.forEach { it.text.clear() }
-                CreateTask(pw, realm, rule, size).execute()
+                if (CharacterClass.SYMBOLS !in rule) symbols.clear()
+                CreateTask(pw, realm, rule, symbols, size).execute()
             }
             setNeutralButton(android.R.string.cancel, null)
         }.create()
@@ -411,10 +425,17 @@ class AccountsActivity : AppCompatActivity() {
         val btn = alertDialog.getButton(AlertDialog.BUTTON_POSITIVE)
 
         fun updateEnabled() {
+            val checked = ccWidgets.filterValues(CheckBox::isChecked)
             btn.isEnabled =
-                username.text.isNotEmpty() and ccWidgets.values.any(CheckBox::isChecked) and
+                username.text.isNotEmpty() and checked.isNotEmpty() and
+                        (checked.any{ it.key != CharacterClass.SYMBOLS } or symbols.isNotEmpty()) and
                         masterPasswords[0].text.asCharArray.contentEquals(masterPasswords[1].text.asCharArray) and masterPasswords[0].text.isNotEmpty()
         }
+
+        symbolButton.setOnClickListener {
+            showSymbolsWindow(symbols, ::updateEnabled)
+        }
+
 
         sequence { yield(username); yieldAll(masterPasswords); }.forEach {
             it.addTextChangedListener {
@@ -439,10 +460,67 @@ class AccountsActivity : AppCompatActivity() {
         ccWidgets.values.forEach {
             it.setOnCheckedChangeListener { _, _ ->
                 updateEnabled()
+                symbolButton.isEnabled = ccWidgets[CharacterClass.SYMBOLS]!!.isChecked
             }
         }
 
         updateEnabled()
+    }
+
+    private fun showSymbolsWindow(symbols: MutableSet<Char>, update: () -> Unit) {
+        val tableLayout = TableLayout(this)
+        tableLayout.setPadding(resources.getDimensionPixelOffset(R.dimen.text_margin))
+        val specialCharacters = mapOf(' ' to R.string.symbol_set_picker_space)
+        val ccWidgets =
+            defaultSymbolSet.filterNot(specialCharacters::containsKey).associateWith { c ->
+                CheckBox(this).apply {
+                    text = c.toString()
+                    typeface = Typeface.MONOSPACE
+                }
+            } as Map<Char, CheckBox> + specialCharacters.map {
+                it.key to CheckBox(this).apply {
+                    setText(it.value)
+                    setTypeface(null, Typeface.ITALIC)
+                }
+            }.toMap()
+        val buttonsRow = TableRow(this)
+        arrayOf(R.string.symbol_set_picker_all to true, R.string.symbol_set_picker_none to false).forEach { (caption, value) ->
+            val btn = Button(this).apply {
+                setText(caption)
+                setOnClickListener { ccWidgets.values.forEach { it.isChecked = value } }
+            }
+            buttonsRow.addView(btn)
+            btn.updateLayoutParams<TableRow.LayoutParams> { span = 2 }
+        }
+        tableLayout.addView(buttonsRow)
+        for (i in 0..SYMBOL_PICKER_COLUMNS) {
+            tableLayout.setColumnStretchable(i, true)
+        }
+        ccWidgets.entries.chunked(SYMBOL_PICKER_COLUMNS).forEach { entries ->
+            tableLayout.addView(TableRow(this).apply {
+                entries.forEach { entry ->
+                    val cb = entry.value
+                    addView(cb)
+                    cb.isChecked = entry.key in symbols
+                }
+            })
+            val diff = SYMBOL_PICKER_COLUMNS - entries.size
+            if (diff > 0) {
+                entries.last().value.updateLayoutParams<TableRow.LayoutParams> { span = diff + 1}
+            }
+        }
+
+        val alertDialog = with(AlertDialog.Builder(this)) {
+            setTitle(R.string.custom_symbol_set_picker_title)
+            setView(tableLayout)
+            setPositiveButton(android.R.string.ok) { _, _ ->
+                symbols.clear()
+                symbols.addAll(ccWidgets.filterValues(CheckBox::isChecked).keys)
+                update()
+            }
+            setNeutralButton(android.R.string.cancel, null)
+        }.create()
+        FlagSecureHelper.markDialogAsSecure(alertDialog).show()
     }
 
     private fun showUser(realm: Protocol.Realm, feedbackText: Int? = null) {

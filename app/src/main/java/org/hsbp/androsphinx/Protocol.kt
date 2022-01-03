@@ -112,9 +112,8 @@ class Protocol {
     companion object {
 
         fun create(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
-                   cs: CredentialStore, size: Int = 0): String {
+                   cs: CredentialStore, symbols: Set<Char>, size: Int = 0): String {
             require(charClasses.isNotEmpty()) { "At least one character class must be allowed." }
-            val symbols = if (charClasses.contains(CharacterClass.SYMBOLS)) SYMBOL_SET.toSet() else emptySet() // TODO allow fine-grain control
             val xorMask = BigInteger.ZERO // TODO add support for non-zero xorMask creation
             val rule = Rule(charClasses, symbols, size.toBigInteger(), xorMask)
             val (_, derived) = Command.CREATE.execute(realm, password, cs, rule)

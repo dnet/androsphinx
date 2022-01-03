@@ -100,4 +100,8 @@
         \n
         \n3. Tap 🔍 in the top bar and enter the domain name
     </string>
+    <string name="custom_symbol_set_picker_title">Pick custom symbol set</string>
+    <string name="symbol_set_picker_space">(space)</string>
+    <string name="symbol_set_picker_all">Select all</string>
+    <string name="symbol_set_picker_none">Select none</string>
 </resources>
