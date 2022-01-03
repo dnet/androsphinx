@@ -59,7 +59,7 @@ class SettingsFragment : PreferenceFragmentCompat(), Preference.OnPreferenceClic
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.preferences, rootKey)
-        preferenceManager.findPreference<Preference>("scan_qr")!!.setOnPreferenceClickListener(this)
+        preferenceManager.findPreference<Preference>("scan_qr")!!.onPreferenceClickListener = this
         ShareType.values().forEach { t ->
             val p = preferenceManager.findPreference<Preference>(t.key)!!
             p.setOnPreferenceClickListener {
