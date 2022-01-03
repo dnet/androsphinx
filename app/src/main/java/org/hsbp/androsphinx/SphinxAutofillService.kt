@@ -31,27 +31,24 @@ class SphinxAutofillService : AutofillService() {
         val result = ParseResult()
         parse(rvn, result)
         val domain = result.domains.firstOrNull(String::isNotEmpty)
-        if (domain == null) {
-            handleFailure(request, callback, R.string.autofill_no_domain_failure)
-        } else {
-            val ids = (result.usernames union result.passwords).toTypedArray()
-            if (ids.isEmpty()) {
-                return handleFailure(request, callback, R.string.autofill_no_inputs)
-            }
-            val authIntent = Intent(this, AccountsActivity::class.java).apply {
-                action = Intent.ACTION_SEARCH
-                putExtra(EXTRA_ACCOUNTS_AUTOFILL, true)
-                putExtra(SearchManager.QUERY, domain)
-            }
-            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) (PendingIntent.FLAG_MUTABLE
-                    or PendingIntent.FLAG_CANCEL_CURRENT) else PendingIntent.FLAG_CANCEL_CURRENT
-            val authentication = PendingIntent.getActivity(this, 1001, authIntent, flags).intentSender
-            val presentation =  RemoteViews(packageName, android.R.layout.simple_list_item_1).apply {
-                setTextViewText(android.R.id.text1, getString(R.string.autofill_remote_button_text))
-            }
-            val fr = FillResponse.Builder().setAuthentication(ids, authentication, presentation).build()
-            callback.onSuccess(fr)
+            ?: return handleFailure(request, callback, R.string.autofill_no_domain_failure)
+        val ids = (result.usernames union result.passwords).toTypedArray()
+        if (ids.isEmpty()) {
+            return handleFailure(request, callback, R.string.autofill_no_inputs)
         }
+        val authIntent = Intent(this, AccountsActivity::class.java).apply {
+            action = Intent.ACTION_SEARCH
+            putExtra(EXTRA_ACCOUNTS_AUTOFILL, true)
+            putExtra(SearchManager.QUERY, domain)
+        }
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) (PendingIntent.FLAG_MUTABLE
+                or PendingIntent.FLAG_CANCEL_CURRENT) else PendingIntent.FLAG_CANCEL_CURRENT
+        val authentication = PendingIntent.getActivity(this, 1001, authIntent, flags).intentSender
+        val presentation =  RemoteViews(packageName, android.R.layout.simple_list_item_1).apply {
+            setTextViewText(android.R.id.text1, getString(R.string.autofill_remote_button_text))
+        }
+        val fr = FillResponse.Builder().setAuthentication(ids, authentication, presentation).build()
+        callback.onSuccess(fr)
     }
 
     private fun handleFailure(request: FillRequest, callback: FillCallback, message: Int) {
