@@ -214,11 +214,11 @@ private fun processCommand(cmd: String, pw: PrintWriter, cs: Protocol.Credential
                         EnumSet.noneOf(CharacterClass::class.java)
                     ) { it.name[0].lowercaseChar() in ccs }
                     val realm = Protocol.Realm(parts[2], parts[3])
+                    val symbols = if ('s' in ccs) SYMBOL_SET.toSet() else emptySet()
                     val derived = if (parts[0] == "create") {
                         Protocol.create(
                             parts[1].toCharArray(), realm, cc, cs, size)
                     } else {
-                        val symbols = if ("s" in ccs) SYMBOL_SET.toSet() else emptySet()
                         Protocol.change(
                             parts[1].toCharArray(), realm, cc, cs, symbols, size)
                     }
