@@ -33,7 +33,7 @@ class SphinxAutofillService : AutofillService() {
         val result = ParseResult()
         parse(rvn, result)
         val domain = result.domains.firstOrNull(String::isNotEmpty)
-            ?: return handleFailure(request, callback, R.string.autofill_no_domain_failure)
+            ?: pkg.split('.').reversed().joinToString(".")
         val ids = (result.usernames union result.passwords).toTypedArray()
         if (ids.isEmpty()) {
             return handleFailure(request, callback, R.string.autofill_no_inputs)

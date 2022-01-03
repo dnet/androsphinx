@@ -74,7 +74,6 @@
     <string name="on_save_request_message">SPHINX cannot save arbitrary passwords by design</string>
     <string name="autofill_remote_button_text">Open Androsphinx for AutoFill</string>
     <string name="autofill_remote_button_user_text">"AutoFill "%s" with SPHINX"</string>
-    <string name="autofill_no_domain_failure">Couldn\'t determine domain name for SPHINX AutoFill</string>
     <string name="btn_generate_autofill">AutoFill form with password</string>
     <string name="password_strength_format">This master password is %1$s as it could be guessed %2$s</string>
     <string name="password_strength_weak">weak</string>
