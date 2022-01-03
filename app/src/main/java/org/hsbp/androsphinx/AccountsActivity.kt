@@ -477,7 +477,7 @@ class AccountsActivity : AppCompatActivity() {
                     text = c.toString()
                     typeface = Typeface.MONOSPACE
                 }
-            } as Map<Char, CheckBox> + specialCharacters.map {
+            } + specialCharacters.map {
                 it.key to CheckBox(this).apply {
                     setText(it.value)
                     setTypeface(null, Typeface.ITALIC)
