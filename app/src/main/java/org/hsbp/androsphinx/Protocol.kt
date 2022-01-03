@@ -157,7 +157,7 @@ class Protocol {
             val request = byteArrayOf(Command.READ.code) + hostId
             performRateLimit(cs, request).use { socket ->
                 try {
-                    cs.auth(socket, hostId)
+                    cs.auth(socket, hostId, ByteArray(0))
                 } catch (e: ServerFailureException) {
                     return emptySet()
                 }
