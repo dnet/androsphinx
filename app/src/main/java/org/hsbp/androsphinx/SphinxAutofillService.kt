@@ -26,6 +26,8 @@ class SphinxAutofillService : AutofillService() {
                                callback: FillCallback) {
 
         val structure = request.fillContexts.last().structure
+        val pkg = structure.activityComponent.packageName
+        if (pkg == packageName) return callback.onSuccess(null) // don't autofill ourself
         val rvn = structure.getWindowNodeAt(0).rootViewNode
 
         val result = ParseResult()
