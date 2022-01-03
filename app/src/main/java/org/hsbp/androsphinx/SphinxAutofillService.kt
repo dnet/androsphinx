@@ -15,6 +15,7 @@ import android.text.InputType
 import android.view.View
 import android.view.autofill.AutofillId
 import android.widget.RemoteViews
+import android.widget.Toast
 import java.util.*
 import kotlin.collections.HashSet
 
@@ -31,12 +32,11 @@ class SphinxAutofillService : AutofillService() {
         parse(rvn, result)
         val domain = result.domains.firstOrNull(String::isNotEmpty)
         if (domain == null) {
-            callback.onFailure(getString(R.string.autofill_no_domain_failure))
+            handleFailure(request, callback, R.string.autofill_no_domain_failure)
         } else {
             val ids = (result.usernames union result.passwords).toTypedArray()
             if (ids.isEmpty()) {
-                callback.onFailure(getString(R.string.autofill_no_inputs))
-                return
+                return handleFailure(request, callback, R.string.autofill_no_inputs)
             }
             val authIntent = Intent(this, AccountsActivity::class.java).apply {
                 action = Intent.ACTION_SEARCH
@@ -52,6 +52,13 @@ class SphinxAutofillService : AutofillService() {
             val fr = FillResponse.Builder().setAuthentication(ids, authentication, presentation).build()
             callback.onSuccess(fr)
         }
+    }
+
+    private fun handleFailure(request: FillRequest, callback: FillCallback, message: Int) {
+        if (request.flags and FillRequest.FLAG_MANUAL_REQUEST != 0) {
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        }
+        callback.onSuccess(null)
     }
 
     class ParseResult(val domains: MutableSet<String> = HashSet(), val usernames: MutableSet<AutofillId?> = HashSet(),
