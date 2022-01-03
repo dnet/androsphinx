@@ -81,7 +81,7 @@ enum class TimerState : Parcelable {
 }
 
 class ClipboardCleanerService : Service(), CoroutineScope {
-    var serviceState: TimerState = TimerState.INITIALIZED
+    private var serviceState: TimerState = TimerState.INITIALIZED
 
     private val helper by lazy { NotificationHelper(this) }
 
