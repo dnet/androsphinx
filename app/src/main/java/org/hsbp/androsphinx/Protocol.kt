@@ -160,7 +160,7 @@ class Protocol {
                 } catch (e: ServerFailureException) {
                     return emptySet()
                 }
-                return receiveUsernameList(socket, cs.getSealKey())
+                return receiveUsernameList(socket, cs.getSealKey()) ?: emptySet()
             }
         }
     }
@@ -198,11 +198,11 @@ private fun updateUserList(socket: Socket, cs: Protocol.CredentialStore, realm: 
     sos.write(hostId + hostSk.sign(hostId))
 
     val usernameList = receiveUsernameList(socket, sealKey)
-    val users = update(usernameList) ?: return
+    val users = update(usernameList ?: emptySet()) ?: return
 
     val encrypted = sealKey.encrypt(users.joinToString("\u0000").toByteArray())
     val payloadSize = encrypted.size
-    val envelope = if (usernameList.isEmpty()) {
+    val envelope = if (usernameList == null) {
         ByteBuffer.allocate(CRYPTO_SIGN_PUBLICKEYBYTES + 2 + payloadSize).put(hostSk.publicKey)
     } else {
         ByteBuffer.allocate(2 + payloadSize)
@@ -222,13 +222,14 @@ fun sendRule(socket: Socket, rule: Rule, sealKey: AeadKey, signKey: Ed25519Priva
     socket.getOutputStream().write(msg + signKey.sign(msg))
 }
 
-private fun receiveUsernameList(socket: Socket, key: AeadKey): Set<String> {
+private fun receiveUsernameList(socket: Socket, key: AeadKey): Set<String>? {
     val source = socket.getInputStream()
     val length = source.readBE16()
-    if (length == 0) return emptySet()
+    if (length == 0) return null
     val blob = source.readExactly(length)
     if (blob.equalsString("fail")) throw Protocol.ServerFailureException()
     val (version, decrypted) = key.decrypt(blob)
+    if (decrypted.isEmpty()) return emptySet()
     return String(decrypted).split('\u0000').toSortedSet()
 }
 
