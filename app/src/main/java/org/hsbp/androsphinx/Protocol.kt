@@ -154,7 +154,12 @@ class Protocol {
         fun list(hostname: String, cs: CredentialStore): Set<String> {
             val hostId = Realm(hostname = hostname, username = "").hash(cs)
             val request = byteArrayOf(Command.READ.code) + hostId
-            performRateLimit(cs, request).use { socket ->
+            val socket = try {
+                performRateLimit(cs, request)
+            } catch (e: ServerFailureException) {
+                return emptySet()
+            }
+            socket.use {
                 try {
                     cs.auth(socket, hostId, ByteArray(0))
                 } catch (e: ServerFailureException) {
