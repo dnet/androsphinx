@@ -114,7 +114,7 @@ class Protocol {
         fun create(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
                    cs: CredentialStore, symbols: Set<Char>, size: Int = 0): String {
             require(charClasses.isNotEmpty()) { "At least one character class must be allowed." }
-            val xorMask = BigInteger.ZERO // TODO add support for non-zero xorMask creation
+            val xorMask = generateRandomXorMask() // TODO add support for deterministic xorMask creation
             val rule = Rule(charClasses, symbols, size.toBigInteger(), xorMask)
             val (_, derived) = Command.CREATE.execute(realm, password, cs, rule)
             return derived
@@ -131,7 +131,7 @@ class Protocol {
         fun change(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
                    cs: CredentialStore, symbols: Set<Char>, size: Int = 0): String {
             require(charClasses.isNotEmpty() || symbols.isNotEmpty()) { "At least one character class or symbol must be allowed." }
-            val xorMask = BigInteger.ZERO // TODO add support for non-zero xorMask creation
+            val xorMask = generateRandomXorMask() // TODO add support for deterministic xorMask creation
             val rule = Rule(charClasses, symbols, size.toBigInteger(), xorMask)
             val (_, derived) = Command.CHANGE.execute(realm, password, cs, rule)
             return derived
@@ -265,3 +265,5 @@ fun Protocol.CredentialStore.auth(socket: Socket, hostId: ByteArray, rwd: ByteAr
 private fun Protocol.CredentialStore.createSocket(): Socket = SSLSocketFactory.getDefault().createSocket(host, port)
 
 private fun ByteArray.equalsString(other: String): Boolean = contentEquals(other.toByteArray())
+
+private fun generateRandomXorMask(): BigInteger = BigInteger(POSITIVE, Sodium.randomBytes(XOR_MASK_BYTES))
