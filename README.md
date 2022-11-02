@@ -8,6 +8,12 @@ SPHINX for Android
 
 **The code is not ready for average users, it's a proof of concept right now.**
 
+This project was funded through the [NGI0 PET](https://nlnet.nl/PET) Fund,
+a fund established by [NLnet](https://nlnet.nl/) with financial support from
+the European Commission's [Next Generation Internet](https://ngi.eu/)
+programme, under the aegis of DG Communications Networks, Content and
+Technology under grant agreement № 825310.
+
 Building
 --------
 
