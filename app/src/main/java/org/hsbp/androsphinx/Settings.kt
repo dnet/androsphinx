@@ -35,6 +35,9 @@ import com.google.android.material.snackbar.Snackbar
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import java.util.*
+import androidx.core.graphics.drawable.toDrawable
+import androidx.core.graphics.createBitmap
+import androidx.core.net.toUri
 
 class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,7 +63,7 @@ class SettingsFragment : PreferenceFragmentCompat(), Preference.OnPreferenceClic
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.preferences, rootKey)
         preferenceManager.findPreference<Preference>("scan_qr")!!.onPreferenceClickListener = this
-        ShareType.values().forEach { t ->
+        ShareType.entries.forEach { t ->
             val p = preferenceManager.findPreference<Preference>(t.key)!!
             p.setOnPreferenceClickListener {
                 showQR(t.serialize(requireContext()), p.title, t.privateMaterialSize > 0)
@@ -93,7 +96,7 @@ class SettingsFragment : PreferenceFragmentCompat(), Preference.OnPreferenceClic
                         pref.setOnPreferenceClickListener {
                             openAutoFillSettings.launch(
                                 Intent(Settings.ACTION_REQUEST_SET_AUTOFILL_SERVICE).setData(
-                                    Uri.parse("package:${ctx.packageName}")
+                                    "package:${ctx.packageName}".toUri()
                                 )
                             )
                             true
@@ -112,7 +115,7 @@ class SettingsFragment : PreferenceFragmentCompat(), Preference.OnPreferenceClic
         }
     }
 
-    private fun showQR(payload: ByteArray, title: CharSequence, hasSecret: Boolean) {
+    private fun showQR(payload: ByteArray, title: CharSequence?, hasSecret: Boolean) {
         val (width, height) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val bounds = requireActivity().windowManager.currentWindowMetrics.bounds
             bounds.width() to bounds.height()
@@ -127,19 +130,18 @@ class SettingsFragment : PreferenceFragmentCompat(), Preference.OnPreferenceClic
         val w = result.width
         val h = result.height
         val pixels = IntArray(w * h) { i -> if (result[i.rem(w), i / w]) BLACK else WHITE }
-        val bm = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val bm = createBitmap(w, h)
         bm.setPixels(pixels, 0, w, 0, 0, w, h)
         with(AlertDialog.Builder(requireContext())) {
             setTitle(title)
             setView(ImageView(context).apply {
-                setImageDrawable(BitmapDrawable(requireActivity().resources, bm))
+                setImageDrawable(bm.toDrawable(requireActivity().resources))
             })
             setNeutralButton(R.string.close, null)
             if (hasSecret) FlagSecureHelper.markDialogAsSecure(create()).show() else show()
         }
     }
 
-    @Suppress("UsePropertyAccessSyntax")
     @SuppressLint("MissingSuperCall")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == IntentIntegrator.REQUEST_CODE) {
@@ -186,14 +188,18 @@ class SettingsFragment : PreferenceFragmentCompat(), Preference.OnPreferenceClic
             } catch (e: Exception) {
                 e.printStackTrace()
                 Snackbar.make(requireView(), R.string.scan_qr_error,
-                    Snackbar.LENGTH_LONG).setAction(R.string.retry) { onPreferenceClick(null) }.show()
+                    Snackbar.LENGTH_LONG).setAction(R.string.retry) { initiateScan() }.show()
             }
         }
     }
 
-    override fun onPreferenceClick(preference: Preference?): Boolean {
-        IntentIntegrator(this).initiateScan(IntentIntegrator.QR_CODE_TYPES)
+    override fun onPreferenceClick(preference: Preference): Boolean {
+        initiateScan()
         return true
+    }
+
+    private fun initiateScan() {
+        IntentIntegrator(this).initiateScan(IntentIntegrator.QR_CODE_TYPES)
     }
 }
 
