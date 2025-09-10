@@ -24,9 +24,8 @@ to match your file system layout:
 
 If this is the first build, `libsphinx.so`, `libequihash.so` and
 `libsodium.so` also needs to be built and `libc++_shared.so` needs to be
-copied. To do this, update `PATH` to include the NDK toolchain commands
-such as `clang`, set the environment variable `ANDROID_NDK_HOME` to the
-appropriate path and run:
+copied. Set the environment variable `ANDROID_NDK_HOME` to the appropriate
+path (displayed during `brew install -cask android-ndk` on macOS) and run:
 
 	sh build-libsphinx.sh
 

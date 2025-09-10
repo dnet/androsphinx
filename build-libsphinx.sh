@@ -1,5 +1,9 @@
 #!/bin/sh
 
+export HOST_ARCH=$(python3 -c 'import os, sys; print(sys.platform + "-" + os.uname().machine)')
+export ANDROID_NDK_TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/$HOST_ARCH
+export PATH=$PATH:$ANDROID_NDK_TOOLCHAIN/bin
+
 set -e
 
 SPHINX=libsphinx
@@ -11,6 +15,7 @@ compile_libsphinx_arch() {
 	TARGET_EQUIHASH=../$OUTDIR/$ANDROID_ARCH
 	TARGET=../$TARGET_EQUIHASH
 	SODIUM_ARCH=$3
+	NDK_ARCH=$4
 
 	cd $SODIUM
 	LIBSODIUM_FULL_BUILD=1 dist-build/android-$SODIUM_ARCH.sh
@@ -22,7 +27,7 @@ compile_libsphinx_arch() {
 	cp $TARGET_EQUIHASH/libsodium.so .
 	make clean
 	make CXX=$2++ SODIUM=../$SODIUM/src/libsodium/include android
-	cp libequihash.so $ANDROID_NDK_HOME/sources/cxx-stl/llvm-libc++/libs/$1/libc++_shared.so $TARGET_EQUIHASH
+	cp libequihash.so $ANDROID_NDK_TOOLCHAIN/sysroot/usr/lib/$NDK_ARCH/libc++_shared.so $TARGET_EQUIHASH
 
 	cd ../$SPHINX/src
 	cp $TARGET/libsodium.so .
@@ -38,7 +43,7 @@ cd $SODIUM
 ./autogen.sh
 cd ..
 
-compile_libsphinx_arch "x86_64"          "x86_64-linux-android21-clang" "x86_64"
-compile_libsphinx_arch "x86"               "i686-linux-android21-clang" "x86"
-compile_libsphinx_arch "arm64-v8a"      "aarch64-linux-android21-clang" "armv8-a"
-compile_libsphinx_arch "armeabi-v7a" "armv7a-linux-androideabi21-clang" "armv7-a"
+compile_libsphinx_arch "x86_64"          "x86_64-linux-android21-clang" "x86_64"  "x86_64-linux-android"
+compile_libsphinx_arch "x86"               "i686-linux-android21-clang" "x86"     "i686-linux-android"
+compile_libsphinx_arch "arm64-v8a"      "aarch64-linux-android21-clang" "armv8-a" "aarch64-linux-android"
+compile_libsphinx_arch "armeabi-v7a" "armv7a-linux-androideabi21-clang" "armv7-a" "arm-linux-androideabi"
