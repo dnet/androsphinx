@@ -32,7 +32,7 @@ compile_libsphinx_arch() {
 	cd ../..
 }
 
-git submodule update --init --recursive --remote
+git submodule update --init --recursive
 
 cd $SODIUM
 ./autogen.sh
