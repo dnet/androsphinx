@@ -7,3 +7,6 @@
 [submodule "equihash"]
 	path = equihash
 	url = https://github.com/stef/equihash
+[submodule "liboprf"]
+	path = liboprf
+	url = https://github.com/stef/liboprf
