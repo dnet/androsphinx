@@ -27,7 +27,7 @@ If this is the first build, `libsphinx.so`, `libequihash.so` and
 copied. Set the environment variable `ANDROID_NDK_HOME` to the appropriate
 path (displayed during `brew install -cask android-ndk` on macOS) and run:
 
-	sh build-libsphinx.sh
+	sh build-native-libs.sh
 
 After a successful build/copy of the above, Gradle can build the app itself,
 compiling managed Kotlin and Java code, and packaging the `.so` files from
