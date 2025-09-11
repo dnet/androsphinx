@@ -3,6 +3,8 @@
 export HOST_ARCH=$(python3 -c 'import os, sys; print(sys.platform + "-" + os.uname().machine)')
 export ANDROID_NDK_TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/$HOST_ARCH
 export PATH=$PATH:$ANDROID_NDK_TOOLCHAIN/bin
+export NDK_LEVEL=21
+export NDK_PLATFORM="android-$NDK_LEVEL"
 
 set -e
 
@@ -43,7 +45,7 @@ cd $SODIUM
 ./autogen.sh
 cd ..
 
-compile_libsphinx_arch "x86_64"          "x86_64-linux-android21-clang" "x86_64"  "x86_64-linux-android"
-compile_libsphinx_arch "x86"               "i686-linux-android21-clang" "x86"     "i686-linux-android"
-compile_libsphinx_arch "arm64-v8a"      "aarch64-linux-android21-clang" "armv8-a" "aarch64-linux-android"
-compile_libsphinx_arch "armeabi-v7a" "armv7a-linux-androideabi21-clang" "armv7-a" "arm-linux-androideabi"
+compile_libsphinx_arch "x86_64"          "x86_64-linux-android$NDK_LEVEL-clang" "x86_64"  "x86_64-linux-android"
+compile_libsphinx_arch "x86"               "i686-linux-android$NDK_LEVEL-clang" "x86"     "i686-linux-android"
+compile_libsphinx_arch "arm64-v8a"      "aarch64-linux-android$NDK_LEVEL-clang" "armv8-a" "aarch64-linux-android"
+compile_libsphinx_arch "armeabi-v7a" "armv7a-linux-androideabi$NDK_LEVEL-clang" "armv7-a" "arm-linux-androideabi"
