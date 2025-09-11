@@ -25,6 +25,20 @@ compile_libsphinx_arch() {
 	mkdir -p $TARGET
 	cp libsodium/.libs/libsodium.so $TARGET
 
+	cd ../../liboprf/src
+	make clean # must clean up previous arch _before_ NoiseXK is built
+	cd noise_xk
+	# Build NoiseXK first on our terms so that liboprf makefile does not
+	# try to invoke make directly, using "all" instead of "android"
+	make clean # deletes .so files, must be done before `cp libsodium.so`
+	cp ../$TARGET/libsodium.so .
+	make CC=$2 UNAME=GNU/Linux ARCH=$3 SODIUM=../../../$SODIUM/src/libsodium/include android
+	cd ..
+	cp $TARGET/libsodium.so .
+	# no `make clean` here, as that would invoke one within NoiseXK as well
+	make CC=$2 LD=$ANDROID_NDK_TOOLCHAIN/bin/ld UNAME=GNU/Linux ARCH=$3 SODIUM=../../$SODIUM/src/libsodium/include android
+	cp noise_xk/liboprf-noiseXK.so liboprf.so $TARGET
+
 	cd ../../equihash
 	cp $TARGET_EQUIHASH/libsodium.so .
 	make clean
