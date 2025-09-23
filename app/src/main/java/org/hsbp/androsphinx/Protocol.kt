@@ -238,7 +238,6 @@ private fun receiveUsernameList(socket: Socket, key: AeadKey): Set<String>? {
     return String(decrypted).split('\u0000').toSortedSet()
 }
 
-@Suppress("UsePropertyAccessSyntax")
 private fun InputStream.readBE16(): Int {
     val len = ByteArray(4) // avoid overflows, as JVM short is signed
     read(len, 2, 2)
