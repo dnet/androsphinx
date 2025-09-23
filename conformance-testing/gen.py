@@ -10,7 +10,6 @@
 # ///
 
 from base64 import b64encode
-from itertools import chain
 
 import click
 import tomlkit  # tomllib is read-only, this is required for writing
