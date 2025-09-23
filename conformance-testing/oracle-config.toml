@@ -1,0 +1,11 @@
+[server]
+address = "0.0.0.0"
+port = 2355
+ssl_key = "/cert/key.pem"
+ssl_cert = "/cert/cert.pem"
+datadir = "/sphinx/data"
+verbose = true
+rl_decay = 1800
+rl_threshold = 1
+rl_gracetime = 10
+ltsigkey = "/sphinx/ltsigkey"
