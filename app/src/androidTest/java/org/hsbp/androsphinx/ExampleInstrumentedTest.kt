@@ -211,7 +211,7 @@ private fun processCommand(cmd: String, pw: PrintWriter, cs: Protocol.Credential
                 try {
                     val size = if (parts.size > 5) parts[5].toInt() else 0
                     val ccs = parts[4].lowercase(Locale.ROOT)
-                    val cc = CharacterClass.values().filterTo(
+                    val cc = CharacterClass.entries.filterTo(
                         EnumSet.noneOf(CharacterClass::class.java)
                     ) { it.name[0].lowercaseChar() in ccs }
                     val realm = Protocol.Realm(parts[2], parts[3])
