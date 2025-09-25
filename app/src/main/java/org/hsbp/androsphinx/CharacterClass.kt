@@ -18,7 +18,7 @@ enum class CharacterClass(private val bit: Int, internal val range: Set<Char>?, 
         }
 
         fun parse(serialized: BigInteger): Set<CharacterClass> =
-            values().filterTo(EnumSet.noneOf(CharacterClass::class.java)) {
+            entries.filterTo(EnumSet.noneOf(CharacterClass::class.java)) {
                 it.range != null && serialized.testBit(it.bit)
             }
 
