@@ -3,6 +3,7 @@ package org.hsbp.androsphinx
 import android.util.Base64
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.github.michaelbull.itertools.tripleCombinations
 import org.hsbp.equihash.Equihash
 
 import org.junit.Test
@@ -32,16 +33,78 @@ const val EXPECTED_SOL = "AAAAAla2ZzCKSqru43jruW0FQAcmV0tdnJNE9r2ovD7R/BfjIVK2zg
 @RunWith(AndroidJUnit4::class)
 class ExampleInstrumentedTest {
     @Test
-    fun sphinxBasicTest() {
-        val salt = ByteArray(16) { 0 }
-        salt[0] = 1
-        Sphinx.Challenge("shitty password".toCharArray(), salt).use { c ->
-            val secret = ByteArray(32) { 0 }
-            secret[0] = 1
-            val resp = Sphinx.respond(c.challenge, secret)!!
-            val rwd = c.finish(salt, resp)!!
-            assertArrayEquals(Base64.decode(EXPECTED_BASIC_TEST, Base64.DEFAULT), rwd)
+    fun oprfBasicTest() {
+        val x = "00".hexToByteArray()
+        val k = "5ebcea5ee37023ccb9fc2d2019f9d7737be85591ae8652ffa9ef0f4d37063b0e".hexToByteArray()
+        val out = "527759c3d9366f277d8c6020418d96bb393ba2afb20ff90df23fb7708264e2f3ab9135e3bd69955851de4b1f9fe8a0973396719b7912ba9ee8aa7d0b5e24bcf6".hexToByteArray()
+        val (r, alpha) = Oprf.blind(x)
+        val beta = Oprf.evaluate(k, alpha)
+        val y = Oprf.unblindFinalize(r, beta, x)
+        println("match? ${y.contentEquals(out)}")
+
+        val n: Byte = 5
+        val t: Byte = 3
+        val tsEpsilon: Long = 5
+        val peerLongTermSecretKeys = (1..n).map { Sodium.cryptoSignSeedKeypair(Sodium.randomBytes(CRYPTO_SIGN_SEEDBYTES)) }
+        val peerLongTermPublicKeys = peerLongTermSecretKeys.map(Sodium::cryptoSignEd25519SkToPk)
+        println("Public keys:")
+        peerLongTermPublicKeys.forEach {
+            println(" - ${it.toHexString()}")
         }
+        val (tp, msg0) = Oprf.tpDkgStartTp(n, t, tsEpsilon, "pyoprf tpdkg test", peerLongTermPublicKeys)
+        tp.use {
+            println("tp: $tp")
+            println("n: ${tp.n}")
+            println("t: ${tp.t}")
+            println("sid: ${tp.sessionId?.toHexString()}")
+            val peers = peerLongTermSecretKeys.map { sk ->
+                Oprf.tpDkgPeerStart(tsEpsilon, sk, msg0)
+            }
+            peers.zip(peerLongTermSecretKeys).forEach { (peer, sk) ->
+                assertArrayEquals(peer.sessionId, tp.sessionId)
+                assertArrayEquals(peer.longTermSecretKey, sk)
+            }
+            val peerMessages = mutableListOf<ByteArray>()
+            while (tp.isNotDone) {
+                println("---while---")
+                val messages = if (peerMessages.isEmpty()) ByteArray(0) else peerMessages.reduce { acc, bytes -> acc + bytes }
+                println(tp.inputSizes?.joinToString())
+                val curStep = tp.step
+                var tpOut = tp.next(messages)!!
+                println("curStep = $curStep, tpOut = ${tpOut.toHexString()}")
+                peerMessages.clear()
+                while ((peerMessages.isEmpty() or peerMessages.all(ByteArray::isEmpty)) and peers[0].isNotDone) {
+                    peers.forEachIndexed { peerIndex, peer ->
+                        val msg = if (tpOut.isEmpty()) {
+                            ByteArray(0)
+                        } else {
+                            tp.peerMessage(tpOut, peerIndex.toByte())!!
+                        }
+                        println(msg.toHexString())
+                        val outMsg = peer.next(msg)!!
+                        if (outMsg.isNotEmpty()) peerMessages.add(outMsg)
+                    }
+                    tpOut = ByteArray(0)
+                }
+            }
+            val shares = peers.map { it.share }
+            shares.forEachIndexed { i, share ->
+                println("share[${i+1}] ${share.toHexString()}")
+            }
+            val v0 = Oprf.thresholdMult((0..2).map { i ->
+                ByteArray(1) { (i + 1).toByte() } +
+                        Oprf.scalarMultRistretto255base(shares[i].copyOfRange(1, shares[i].size))!!})
+            println(v0.toHexString())
+            (1..<n).toList().tripleCombinations().forEach { peerIndexes ->
+                val v1 = Oprf.thresholdMult(peerIndexes.toList().map { i ->
+                    ByteArray(1) { (i + 1).toByte() } +
+                            Oprf.scalarMultRistretto255base(shares[i].copyOfRange(1, shares[i].size))!!
+                })
+                assertArrayEquals(v0, v1)
+                println("${v0 contentEquals v1} $peerIndexes\t${v1.toHexString()}")
+            }
+        }
+        println("msg0: ${msg0.toHexString()}")
     }
 
     @Test
