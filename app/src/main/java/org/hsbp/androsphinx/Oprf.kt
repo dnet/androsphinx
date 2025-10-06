@@ -1,9 +1,5 @@
 package org.hsbp.androsphinx
 
-import android.os.Build
-import androidx.annotation.RequiresApi
-import java.lang.ref.Cleaner
-
 class Oprf {
     companion object {
         init {
@@ -21,22 +17,17 @@ class Oprf {
     }
 }
 
-class TpdkgContext(context: Long, buf: Long) : AutoCloseable {
-    private var ctx: Long = context
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU) // TODO app min API level?
-    private var cleanable = cleaner.register(this) {
-        dispose(context, buf)
-    }
-
+class TpdkgContext(private var ctx: Long, private var buf: Long) : AutoCloseable {
     companion object {
-        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-        val cleaner: Cleaner = Cleaner.create()
         @JvmStatic external fun dispose(context: Long, buf: Long)
     }
 
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun close() {
-        cleanable.clean()
+        if (buf != 0L && ctx != 0L) {
+            dispose(ctx, buf)
+            ctx = 0L
+            buf = 0L
+        }
     }
 
     val n: Byte
@@ -66,23 +57,18 @@ class TpdkgContext(context: Long, buf: Long) : AutoCloseable {
     }
 }
 
-class TpdkgPeerContext(context: Long, buf: Long) : AutoCloseable { // TODO trusted party
-    private var ctx: Long = context
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    private var cleanable = cleaner.register(this) {
-        dispose(context, buf)
-    }
-
+class TpdkgPeerContext(private var ctx: Long, private var buf: Long) : AutoCloseable { // TODO trusted party
     companion object {
-        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-        val cleaner: Cleaner = Cleaner.create()
         @JvmStatic external fun dispose(context: Long, buf: Long)
     }
 
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun close() {
-        cleanable.clean()
-    }
+        if (buf != 0L && ctx != 0L) {
+            dispose(ctx, buf)
+            ctx = 0L
+            buf = 0L
+        }
+     }
 
     external fun next(msg: ByteArray): ByteArray?
 
