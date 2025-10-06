@@ -3,7 +3,10 @@
 
 package org.hsbp.androsphinx
 
+import com.danrusu.pods4k.immutableArrays.ImmutableByteArray
+import com.danrusu.pods4k.immutableArrays.toMutableArray
 import org.hsbp.equihash.Equihash
+import java.io.Closeable
 import java.io.InputStream
 import java.lang.RuntimeException
 import java.math.BigInteger
@@ -11,66 +14,93 @@ import java.net.Socket
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import javax.net.ssl.SSLSocketFactory
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
+import com.github.michaelbull.itertools.permutations
+import kotlin.collections.component1
+import kotlin.collections.component2
 
-const val RULE_BYTES_LENGTH: Int = 38
+const val RULE_BYTES_LENGTH: Int = 70
 const val AUTH_NONCE_BYTES: Int = 32
 const val VERSION_LENGTH: Int = 1
 const val ENCRYPTED_RULE_LENGTH: Int = CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES + CRYPTO_AEAD_XCHACHA20POLY1305_IETF_ABYTES + RULE_BYTES_LENGTH + VERSION_LENGTH
 
+const val OPRF_BYTES: Int = 64
+
 private val RESPONSE_OK = "ok".toByteArray()
+private val RESPONSE_AUTH = byteArrayOf(0, 4) + "auth".toByteArray()
+private val BLOB_FAIL = "fail".toByteArray()
+private val RESPONSE_FAIL = byteArrayOf(0, 4) + BLOB_FAIL
+const val TS_EPSILON: Long = 1200 // TODO make configurable
 
 class Protocol {
-    enum class Command(val code: Byte, val requiresAuth: Boolean = true,
+    enum class Command(val code: Byte,
                        val writeRule: Boolean = false, val rateLimit: Boolean = true,
-                       val appendUser: Boolean = false, val checkOK: Boolean = false) {
-        CREATE(0x00, requiresAuth = false, writeRule = true, rateLimit = false, appendUser = true),
-        READ(0x33), UNDO(0x55, checkOK = true), CHALLENGE_CREATE(0x5a),
-        GET(0x66, requiresAuth = false), COMMIT(0x99.toByte(), checkOK = true),
-        CHANGE(0xAA.toByte(), writeRule = true, checkOK = true), CHALLENGE_VERIFY(0xA5.toByte()),
+                       val requiredResponses: RequiredResponses = RequiredResponses.ALL) {
+        CREATE(0x00, writeRule = true, rateLimit = false),
+        CREATE_DKG(0xf0.toByte()),
+        READ(0x33, requiredResponses = RequiredResponses.THRESHOLD),
+        UNDO(0x55),
+        CHALLENGE_CREATE(0x5a, requiredResponses = RequiredResponses.CHALLENGE),
+        GET(0x66, requiredResponses = RequiredResponses.THRESHOLD),
+        COMMIT(0x99.toByte()),
+        CHANGE(0xAA.toByte(), writeRule = true),
+        CHANGE_DKG(0xa0.toByte()),
+        CHALLENGE_VERIFY(0xA5.toByte(), requiredResponses = RequiredResponses.CHALLENGE),
         WRITE(0xCC.toByte()), DELETE(0xFF.toByte());
 
-        fun <T> connect(cs: CredentialStore, password: CharArray, id: ByteArray,
-                        body: ((Socket, ByteArray) -> T)? = null): T? {
-            Sphinx.Challenge(password).use { challenge ->
+        fun <T> connect(cs: CredentialStore, password: CharArray, id: Map<Server, ByteArray>,
+                                realm: Realm,
+                        body: ((Map<Server, Socket>, ByteArray, ByteArray) -> T)? = null): T? {
+            val (r, alpha) = Oprf.blind(toBytes(password.clone())) // TODO only CREATE + GET?
+
+            val requests = id.mapValues { entry ->
                 val message = ByteBuffer.allocate(DECAF_255_SER_BYTES + CRYPTO_GENERICHASH_BYTES + 1)
                 message.put(code)
-                message.put(id)
-                message.put(challenge.challenge)
-                val request = message.array()
-                val s = if (rateLimit) {
-                    performRateLimit(cs, request)
-                } else {
-                    cs.createSocket().apply { getOutputStream().write(request) }
-                }
-                s.use { socket ->
-                    val sis = socket.getInputStream()
-                    val rwd = challenge.finish(id, sis)
-                    if (requiresAuth) cs.auth(socket, id, rwd)
-                    val result = body?.invoke(socket, rwd)
-                    if (checkOK) {
-                        if (!(sis.readExactly(RESPONSE_OK.size) contentEquals RESPONSE_OK)) {
-                            throw ServerFailureException()
-                        }
-                    }
-                    return result
-                }
+                message.put(entry.value)
+                message.put(alpha)
+                message.array()
             }
+            val s = if (rateLimit) {
+                performRateLimit(cs, requests)
+            } else {
+                cs.createSocket().apply { broadcastToPeers(requests) }
+            }
+            s.use { socket ->
+                check(cs.servers.size > 1) // TODO
+                val responses = try {
+                    socket.gather(
+                        33 + ENCRYPTED_RULE_LENGTH,
+                        cs.threshold
+                    )
+                } catch (_: IllegalStateException) {
+                    throw ServerFailureException()
+                }
+                val rules = responses.values.map { it.sliceArray(33 until it.size) }
+                val rule = rules.first()
+                val beta = Oprf.thresholdMult(responses.values.map { it.sliceArray(0 until 33) })
+                val unblinded = Oprf.unblindFinalize(r, beta, toBytes(password.clone()))
+                val rwd = realm.oprfToRwd(cs, unblinded)
+                val result = body?.invoke(socket, rwd, rule)
+                return result
+            }
+        }
+
+
+
+        enum class RequiredResponses {
+            ALL, THRESHOLD, CHALLENGE
         }
 
         fun execute(realm: Realm, password: CharArray, cs: CredentialStore,
                     createRule: Rule? = null): Pair<Rule, String> {
             val hostId = realm.hash(cs)
-            val challenge = if (requiresAuth) Sphinx.Challenge(password.clone()) else null
-
-            return connect(cs, password, hostId) { s, oldRwd ->
-                val sis = s.getInputStream()
-                val newRwd = challenge?.use { c -> // TODO: "CHANGE" -> allow new pw
-                    s.getOutputStream().write(c.challenge)
-                    c.finish(hostId, sis)
-                } ?: oldRwd
+            return connect(cs, password, hostId, realm) { s, oldRwd, rule ->
+                val newRwd = oldRwd
 
                 val rule = if (createRule == null) {
-                    val (version, ruleBytes) = cs.getSealKey().decrypt(sis.readExactly(ENCRYPTED_RULE_LENGTH))
+                    val (_, ruleBytes) = cs.getSealKey().decrypt(rule)
                     Rule.parse(ruleBytes).apply {
                         if (checkDigit != calculateCheckDigit(newRwd).and(CHECK_DIGIT_MASK)) {
                             throw CheckDigitMismatchException()
@@ -78,22 +108,81 @@ class Protocol {
                     }
                 } else createRule.withCheckDigit(calculateCheckDigit(newRwd))
 
-                if (writeRule) {
-                    sendRule(s, rule, cs.getSealKey(), cs.getSignKey(hostId, newRwd))
-                }
-
-                if (appendUser) {
-                    updateUserList(s, cs, realm) { users -> users + realm.username }
-                }
-
-                val rwd = BigInteger(POSITIVE, DerivationContext.PASSWORD.foldHash(newRwd)).xor(rule.xorMask)
-                rule to CharacterClass.derive(rwd, rule.charClasses, rule.size.toInt(), rule.symbols)
+                rule to rule.derive(newRwd)
             }!!
+        }
+
+
+        fun performRateLimit(cs: CredentialStore, requests: Map<Server, ByteArray>): Map<Server, Socket> {
+            val challenges = cs.createSocket().use { s ->
+                val rr = when (requiredResponses) {
+                    RequiredResponses.ALL -> s.size
+                    RequiredResponses.THRESHOLD -> cs.threshold
+                    RequiredResponses.CHALLENGE -> throw IllegalArgumentException("Invalid state")
+                }
+                s.sendCommand(CHALLENGE_CREATE, requests)
+                s.gather(1 + 1 + 8 + 32, rr)
+            }
+            val puzzles = challenges.map { (server, challenge) ->
+                val n = challenge[0]
+                val k = challenge[1]
+                val seed = challenge + requests[server]!!
+                val solution = Equihash.solve(n.toInt(), k.toInt(), seed)!!
+                server to (challenge to solution)
+            }.toMap()
+            val socket = puzzles.keys.createSocket()
+            val parameters = puzzles.mapValues { entry -> entry.value.first + requests[entry.key]!! + entry.value.second }
+            socket.sendCommand(CHALLENGE_VERIFY, parameters)
+            return socket
+        }
+
+        fun serializeCommand(
+            parts: Map<Server, ByteArray>,
+        ): Map<Server, ByteArray> = parts.mapValues { entry ->
+            val bb = ByteBuffer.allocate(1 + entry.value.size )
+            bb.put(code)
+            bb.put(entry.value)
+            bb.array()
         }
     }
 
     data class Realm(val username: String, val hostname: String) {
-        fun hash(cs: CredentialStore) = Sodium.genericHash("$username|$hostname".toByteArray(), cs.key.foldHash(DerivationContext.SALT))
+        fun hash(cs: CredentialStore): Map<Server, ByteArray> {
+            val commonPrefix = serializeUserHost()
+            val commonPrefixSize = commonPrefix.size
+            return cs.servers.associateWith { server ->
+                val nameBytes = server.name.toByteArray()
+                Sodium.genericHash(
+                    ByteBuffer.allocate(commonPrefixSize + nameBytes.size + 2)
+                        .order(ByteOrder.BIG_ENDIAN)
+                        .put(commonPrefix)
+                        .putShort(nameBytes.size.toShort())
+                        .put(nameBytes)
+                        .array(),
+                    cs.key.foldHash(DerivationContext.SALT)
+                )
+            }
+        }
+
+        fun oprfToRwd(cs: CredentialStore, rwd: ByteArray): ByteArray {
+            val salt = Sodium.genericHash(serializeUserHost(cs.key.foldHash(DerivationContext.SALT)),
+                null, CRYPTO_PWHASH_SALTBYTES)
+            return Sodium.passwordHash(OPRF_BYTES, rwd, salt)!!
+        }
+
+        private fun serializeUserHost(prefix: ByteArray? = null): ByteArray {
+            val usernameBytes = username.toByteArray()
+            val hostnameBytes = hostname.toByteArray()
+            val commonPrefix = ByteBuffer.allocate(usernameBytes.size + hostnameBytes.size + 4 + (prefix?.size
+                ?: 0))
+            commonPrefix.order(ByteOrder.BIG_ENDIAN)
+            if (prefix != null) commonPrefix.put(prefix)
+            commonPrefix.putShort(usernameBytes.size.toShort())
+            commonPrefix.put(usernameBytes)
+            commonPrefix.putShort(hostnameBytes.size.toShort())
+            commonPrefix.put(hostnameBytes)
+            return commonPrefix.array()
+        }
 
         val withoutUser: Realm
             get() = Realm(username = "", hostname = hostname)
@@ -104,20 +193,29 @@ class Protocol {
 
     interface CredentialStore {
         val key: MasterKey
-        val host: String
-        val port: Int
+        val servers: List<Server>
         val rwdKeys: Boolean
+        val threshold: Int
     }
+
+    data class Server(val name: String, val host: String, val port: Int, val longTermSignatureKey: ImmutableByteArray)
 
     companion object {
 
         fun create(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
                    cs: CredentialStore, symbols: Set<Char>, size: Int = 0): String {
-            require(charClasses.isNotEmpty()) { "At least one character class must be allowed." }
-            val xorMask = generateRandomXorMask() // TODO add support for deterministic xorMask creation
-            val rule = Rule(charClasses, symbols, size.toBigInteger(), xorMask)
-            val (_, derived) = Command.CREATE.execute(realm, password, cs, rule)
-            return derived
+            require(charClasses.isNotEmpty() || symbols.isNotEmpty()) { "At least one character class or symbol must be allowed." } // TODO additional checks c.f. with_schema
+            val baseRule = Rule(charClasses, symbols, size.toBigInteger(), BigInteger.ZERO)
+            val (r, alpha) = Oprf.blind(toBytes(password.clone()))
+            val hostId = realm.hash(cs)
+            check(cs.threshold > 1) // TODO
+            val (socket, beta) = cs.dkg(Command.CREATE_DKG, hostId, alpha)
+            val unblinded = Oprf.unblindFinalize(r, beta, toBytes(password.clone()))
+            val rwd = realm.oprfToRwd(cs, unblinded)
+            val rule = baseRule.withXorMaskFor(rwd)
+            cs.sendRule(socket, rule, rwd, hostId)
+            updateUserList(socket, cs, realm) { users -> users + realm.username }
+            return rule.derive(rwd)
         }
 
         fun calculateCheckDigit(rwd: ByteArray): BigInteger {
@@ -130,29 +228,86 @@ class Protocol {
 
         fun change(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
                    cs: CredentialStore, symbols: Set<Char>, size: Int = 0): String {
-            require(charClasses.isNotEmpty() || symbols.isNotEmpty()) { "At least one character class or symbol must be allowed." }
-            val xorMask = generateRandomXorMask() // TODO add support for deterministic xorMask creation
-            val rule = Rule(charClasses, symbols, size.toBigInteger(), xorMask)
-            val (_, derived) = Command.CHANGE.execute(realm, password, cs, rule)
-            return derived
+            // TODO add support for changing master password
+            require(charClasses.isNotEmpty() || symbols.isNotEmpty()) { "At least one character class or symbol must be allowed." } // TODO additional checks c.f. with_schema
+            // TODO add support for deterministic xorMask creation
+            val baseRule = Rule(charClasses, symbols, size.toBigInteger(), BigInteger.ZERO)
+            val (r, alpha) = Oprf.blind(toBytes(password.clone()))
+            val hostId = realm.hash(cs)
+            check(cs.threshold > 1) // TODO
+            val cmd = hostId.mapValues { (_, id) -> id + alpha }
+            val messages = Command.CHANGE_DKG.serializeCommand(cmd)
+            val socket = Command.CHANGE_DKG.performRateLimit(cs, messages)
+            cs.auth(socket, hostId, messages, AuthContext(alpha, password, r, realm))
+            val (r2, alpha2) = Oprf.blind(toBytes(password.clone()))
+            val (_, beta2) = cs.dkg(Command.CHANGE_DKG, hostId, alpha2, socket)
+            val unblinded = Oprf.unblindFinalize(r2, beta2, toBytes(password.clone()))
+            val rwd = realm.oprfToRwd(cs, unblinded)
+            val rule = baseRule.withXorMaskFor(rwd)
+            cs.sendRule(socket, rule, rwd, hostId)
+            check(socket.gather(2).values.all(RESPONSE_OK::contentEquals),
+                { "failed to update rules" })
+            return rule.derive(rwd)
         }
 
         fun commit(password: CharArray, realm: Realm, cs: CredentialStore) {
-            Command.COMMIT.connect<Void>(cs, password, realm.hash(cs))
+            val (r, alpha) = Oprf.blind(toBytes(password.clone()))
+            val hostId = realm.hash(cs)
+            val cmd = hostId.mapValues { (_, id) -> id + alpha }
+            val messages = Command.COMMIT.serializeCommand(cmd)
+            val socket = Command.COMMIT.performRateLimit(cs, messages)
+            cs.auth(socket, hostId, messages, AuthContext(alpha, password, r, realm))
+            check(socket.gather(2).values.all(RESPONSE_OK::contentEquals),
+                { "failed to update rules" })
+            // TODO Command.COMMIT.connect<Void>(cs, password, realm.hash(cs))
         }
 
         fun undo(password: CharArray, realm: Realm, cs: CredentialStore) {
-            Command.UNDO.connect<Void>(cs, password, realm.hash(cs))
+            val (r, alpha) = Oprf.blind(toBytes(password.clone()))
+            val hostId = realm.hash(cs)
+            val cmd = hostId.mapValues { (_, id) -> id + alpha }
+            val messages = Command.UNDO.serializeCommand(cmd)
+            val socket = Command.UNDO.performRateLimit(cs, messages)
+            cs.auth(socket, hostId, messages, AuthContext(alpha, password, r, realm))
+            check(socket.gather(2).values.all(RESPONSE_OK::contentEquals),
+                { "failed to update rules" })
+            // TODO Command.UNDO.connect<Void>(cs, password, realm.hash(cs))
         }
 
         fun delete(password: CharArray, realm: Realm, cs: CredentialStore) {
-            Command.DELETE.connect(cs, password, realm.hash(cs)) { s, _ ->
+            val (r, alpha) = Oprf.blind(toBytes(password.clone()))
+            val hostId = realm.hash(cs)
+            val cmd = hostId.mapValues { (_, id) -> id + alpha }
+            val messages = Command.DELETE.serializeCommand(cmd)
+            val socket = Command.DELETE.performRateLimit(cs, messages)
+            cs.auth(socket, hostId, messages, AuthContext(alpha, password, r, realm))
+            updateUserList(socket, cs, realm) { users -> if (users.isEmpty()) null else users - realm.username }
+            check(socket.gather(2).values.all(RESPONSE_OK::contentEquals),
+                { "failed to update rules" })
+            /* TODO Command.DELETE.connect(cs, password, realm.hash(cs)) { s, _ ->
                 updateUserList(s, cs, realm) { users -> if (users.isEmpty()) null else users - realm.username }
-            }
+            }*/
         }
 
         fun list(hostname: String, cs: CredentialStore): Set<String> {
-            val hostId = Realm(hostname = hostname, username = "").hash(cs)
+            val realm = Realm(hostname = hostname, username = "")
+            val hostId = realm.hash(cs)
+            val request = Command.READ.serializeCommand(hostId)
+            val socket = try {
+                Command.READ.performRateLimit(cs, request)
+            } catch (e: ServerFailureException) {
+                return emptySet()
+            }
+            socket.use {
+                try {
+                    cs.auth(socket, hostId, request, null)
+                } catch (e: ServerFailureException) {
+                    return emptySet()
+                }
+                return receiveUsernameList(socket, cs.getSealKey()) ?: emptySet()
+            }
+
+            /*val hostId = Realm(hostname = hostname, username = "").hash(cs)
             val request = byteArrayOf(Command.READ.code) + hostId
             val socket = try {
                 performRateLimit(cs, request)
@@ -166,82 +321,180 @@ class Protocol {
                     return emptySet()
                 }
                 return receiveUsernameList(socket, cs.getSealKey()) ?: emptySet()
-            }
+            }*/
+            //return emptySet() // TODO
         }
     }
 }
 
-private fun performRateLimit(cs: Protocol.CredentialStore, request: ByteArray): Socket {
-    val challenge = cs.createSocket().use { s ->
-        s.sendCommand(Protocol.Command.CHALLENGE_CREATE, request)
-        s.getInputStream().readExactly(1 + 1 + 8 + 32)
+private fun Protocol.CredentialStore.dkg(
+    operation: Protocol.Command,
+    id: Map<Protocol.Server, ByteArray>?,
+    alpha: ByteArray,
+    authSocket: Map<Protocol.Server, Socket>? = null
+): Pair<Map<Protocol.Server, Socket>, ByteArray> {
+    val n = servers.size.toByte()
+    val peerLongTermPublicKeys = servers.map { server ->
+        check(
+            server.longTermSignatureKey.isNotEmpty(),
+            { "longTermSignatureKey for server ${server.name} is unset" })
+        server.longTermSignatureKey.toMutableArray()
     }
-    val n = challenge[0]
-    val k = challenge[1]
-    val seed = challenge + request
-    val solution = Equihash.solve(n.toInt(), k.toInt(), seed)!!
-    val socket = cs.createSocket()
-    socket.sendCommand(Protocol.Command.CHALLENGE_VERIFY, challenge, request, solution)
-    return socket
+    val socket = authSocket ?: createSocket()
+    val tp = if (operation == Protocol.Command.CREATE_DKG) {
+        val (tp, msg0) = Oprf.tpDkgStartTp(n, threshold.toByte(), TS_EPSILON,
+            "threshold sphinx dkg create k", peerLongTermPublicKeys)
+        val postfix = alpha + msg0
+        socket.sendCommand(operation, id!!.mapValues { (_, hostId) ->
+            hostId + postfix
+        })
+        tp
+    } else {
+        val (tp, msg0) = Oprf.tpDkgStartTp(n, threshold.toByte(), TS_EPSILON,
+            "threshold sphinx dkg change k", peerLongTermPublicKeys)
+        val message = alpha + msg0
+        socket.broadcastToPeers(servers.associateWith { message })
+        tp
+    }
+    tp.use {
+        while (tp.isNotDone) {
+            val (ret, sizes) = tp.inputSizes
+            val peerMessages = if (ret) {
+                if (sizes[0] > 0) socket.gather(sizes[0].toInt(), servers.size)
+                else emptyMap()
+            } else {
+                socket.gather(sizes)
+            }
+            val bb = ByteBuffer.allocate(peerMessages.values.asSequence().map(ByteArray::size).sum())
+            servers.forEach { bb.put(peerMessages[it] ?: return@forEach) }
+            val out = tp.next(bb.array())!!
+            if (out.isNotEmpty()) {
+                val msg = servers.mapIndexed { i, server -> server to tp.peerMessage(out, i.toByte())!! }.toMap()
+                socket.broadcastToPeers(msg)
+            }
+        }
+    }
+    val betas = socket.gather(33).values.toList()
+    return socket to betas.permutations().map(Oprf::thresholdMult).toList().ensureMatchingByteArrays()
 }
 
-private fun Socket.sendCommand(command: Protocol.Command, vararg parts: ByteArray) {
-    val bb = ByteBuffer.allocate(1 + parts.sumOf { it.size })
-    bb.put(command.code)
-    parts.forEach { bb.put(it) }
-    getOutputStream().write(bb.array())
+private fun Collection<ByteArray>.ensureMatchingByteArrays(): ByteArray {
+    check(isNotEmpty(), { "list cannot be empty" })
+    val first = first()
+    if (size > 1) {
+        check(asSequence().drop(1).all { it contentEquals first },
+            { "disagreement among servers" })
+    }
+    return first
 }
 
-private fun updateUserList(socket: Socket, cs: Protocol.CredentialStore, realm: Protocol.Realm,
+private fun Map<Protocol.Server, Socket>.gather(byteCount: Int, requiredResponses: Int = 0): Map<Protocol.Server, ByteArray> {
+    val responses = this.entries.mapNotNull { (server, socket) ->
+        try {
+            server to socket.getInputStream().readExactly(byteCount)
+        } catch (_: Exception) {
+            null
+        }
+    }.toMap()
+    val threshold = if (requiredResponses > 0) requiredResponses else this.size
+    check(responses.size >= threshold,
+        { "not enough responses gather($byteCount)ed: (${responses.size} < $threshold) $responses" })
+    return responses
+}
+
+private fun Map<Protocol.Server, Socket>.gather(byteCounts: LongArray): Map<Protocol.Server, ByteArray> {
+    val responses = this.entries.withIndex().mapNotNull { (i, entry) ->
+        try {
+            entry.key to entry.value.getInputStream().readExactly(byteCounts[i].toInt())
+        } catch (_: Exception) {
+            null
+        }
+    }.toMap()
+    val threshold = this.size
+    check(responses.size >= threshold,
+        { "not enough responses gather(${byteCounts.asList()})ed: (${responses.size} < $threshold) $responses" })
+    return responses
+}
+
+private fun Map<Protocol.Server, Socket>.sendCommand(command: Protocol.Command, parameters: Map<Protocol.Server, ByteArray>) {
+    broadcastToPeers(command.serializeCommand(parameters))
+}
+
+private fun Map<Protocol.Server, Socket>.broadcastToPeers(
+    messages: Map<Protocol.Server, ByteArray>
+) {
+    this.entries.forEach {
+        entry -> entry.value.getOutputStream().write(messages[entry.key]) }
+}
+
+private fun updateUserList(socket: Map<Protocol.Server, Socket>, cs: Protocol.CredentialStore, realm: Protocol.Realm,
                            update: (Set<String>) -> Set<String>?) {
-    val sos = socket.getOutputStream()
     val hostId = realm.withoutUser.hash(cs)
+    socket.broadcastToPeers(hostId.mapValues { (_, id) ->
+        id + cs.getSignKey(id).sign(id)
+    })
 
     val sealKey = cs.getSealKey()
-    val hostSk = cs.getSignKey(hostId, ByteArray(0))
-
-    sos.write(hostId + hostSk.sign(hostId))
-
     val usernameList = receiveUsernameList(socket, sealKey)
     val users = update(usernameList ?: emptySet()) ?: return
+    val plainText = users.joinToString("\u0000").toByteArray()
 
-    val encrypted = sealKey.encrypt(users.joinToString("\u0000").toByteArray())
-    val payloadSize = encrypted.size
-    val envelope = if (usernameList == null) {
-        ByteBuffer.allocate(CRYPTO_SIGN_PUBLICKEYBYTES + 2 + payloadSize).put(hostSk.publicKey)
-    } else {
-        ByteBuffer.allocate(2 + payloadSize)
-    }.order(ByteOrder.BIG_ENDIAN)
-    envelope.putShort(payloadSize.toShort())
-    envelope.put(encrypted)
-    val message = envelope.array()
-    sos.write(message + hostSk.sign(message))
+    socket.broadcastToPeers(hostId.mapValues { (_, id) ->
+        val hostSk = cs.getSignKey(id)
+        val encrypted = sealKey.encrypt(plainText)
+        val payloadSize = encrypted.size
+        check(payloadSize < 0x10000, { "list of usernames must be less than 64kB" })
+        val envelope = if (usernameList == null) {
+            ByteBuffer.allocate(CRYPTO_SIGN_PUBLICKEYBYTES + 2 + payloadSize).put(hostSk.publicKey)
+        } else {
+            ByteBuffer.allocate(2 + payloadSize)
+        }.order(ByteOrder.BIG_ENDIAN)
+        envelope.putShort(payloadSize.toShort())
+        envelope.put(encrypted)
+        val toSign = envelope.array()
+        toSign + hostSk.sign(toSign)
+    })
 }
 
 fun Sphinx.Challenge.finish(salt: ByteArray, stream: InputStream): ByteArray =
     finish(salt, stream.readExactly(DECAF_255_SER_BYTES)) ?: throw Protocol.ServerFailureException()
 
-fun sendRule(socket: Socket, rule: Rule, sealKey: AeadKey, signKey: Ed25519PrivateKey) {
-    val ruleCipherText = sealKey.encrypt(rule.serialize())
-    val msg = signKey.publicKey + ruleCipherText
-    socket.getOutputStream().write(msg + signKey.sign(msg))
+fun Protocol.CredentialStore.sendRule(socket: Map<Protocol.Server, Socket>, rule: Rule,
+                                              newRwd: ByteArray, hostId: Map<Protocol.Server, ByteArray>) {
+    val sealKey = getSealKey()
+    val messages = socket.mapValues { (server, _) ->
+        val signKey = getSignKey(hostId[server]!!, newRwd)
+        val ruleCipherText = sealKey.encrypt(rule.serialize())
+        val msg = signKey.publicKey + ruleCipherText
+        msg + signKey.sign(msg)
+    }
+    socket.broadcastToPeers(messages)
 }
 
-private fun receiveUsernameList(socket: Socket, key: AeadKey): Set<String>? {
-    val source = socket.getInputStream()
-    val length = source.readBE16()
+private fun receiveUsernameList(socket: Map<Protocol.Server, Socket>, key: AeadKey): Set<String>? {
+    val blobSizes = socket.readBE16() // TODO why not just cs.threshold?
+    check(blobSizes.values.toSet().size == 1, { "servers disagree on userlist blob size" })
+    val length = blobSizes.values.first()
     if (length == 0) return null
-    val blob = source.readExactly(length)
-    if (blob.equalsString("fail")) throw Protocol.ServerFailureException()
-    val (version, decrypted) = key.decrypt(blob)
-    if (decrypted.isEmpty()) return emptySet()
-    return String(decrypted).split('\u0000').toSortedSet()
+    val blobs = socket.gather(length)
+    val plainTextBlobs = mutableSetOf<String>()
+    for (blob in blobs.values) {
+        if (blob contentEquals BLOB_FAIL) {
+            throw Protocol.ServerFailureException()
+        }
+        plainTextBlobs.add(key.decrypt(blob).second.decodeToString())
+    }
+    check(plainTextBlobs.size == 1, { "servers disagree on userlist contents" })
+    return plainTextBlobs.first().split('\u0000').toSortedSet()
 }
 
-private fun InputStream.readBE16(): Int {
+private fun Map<Protocol.Server, Socket>.readBE16(): Map<Protocol.Server, Int> {
     val len = ByteArray(4) // avoid overflows, as JVM short is signed
-    read(len, 2, 2)
-    return ByteBuffer.wrap(len).order(ByteOrder.BIG_ENDIAN).getInt()
+    val bb = ByteBuffer.wrap(len).order(ByteOrder.BIG_ENDIAN)
+    return mapValues { (server, socket) ->
+        socket.getInputStream().read(len, 2, 2)
+        bb.getInt(0)
+    }
 }
 
 private fun InputStream.readExactly(length: Int): ByteArray {
@@ -256,13 +509,71 @@ fun Protocol.CredentialStore.getSignKey(id: ByteArray, rwd: ByteArray? = null): 
 fun Protocol.CredentialStore.getSealKey(): AeadKey =
     AeadKey.fromByteArray(key.foldHash(DerivationContext.ENCRYPTION))
 
-fun Protocol.CredentialStore.auth(socket: Socket, hostId: ByteArray, rwd: ByteArray? = null) {
-    val nonce = socket.getInputStream().readExactly(AUTH_NONCE_BYTES)
-    socket.getOutputStream().write(getSignKey(hostId, rwd).sign(nonce))
+class AuthContext(val alpha: ByteArray, val password: CharArray, val r: ByteArray, val realm: Protocol.Realm)
+
+fun Protocol.CredentialStore.auth(
+    socket: Map<Protocol.Server, Socket>, hostId: Map<Protocol.Server, ByteArray>,
+    requests: Map<Protocol.Server, ByteArray>, context: AuthContext? = null
+) {
+    val (challenges, rwd) = if (context == null) {
+        try {
+            socket.gather(AUTH_NONCE_BYTES)
+        } catch (_: IllegalStateException) {
+            throw Protocol.ServerFailureException() // TODO why does this fail if READ command was sent with a non-existent hostId?
+        } to ByteArray(0)
+    } else {
+        val messages = socket.gather(65)
+        check(servers.size > 1) // TODO
+        val beta = Oprf.thresholdMult(messages.values.asSequence().windowed(threshold).first().map { it.sliceArray(0 until 33) })
+        val unblinded = Oprf.unblindFinalize(context.r, beta, toBytes(context.password.clone()))
+        val rwd = context.realm.oprfToRwd(this, unblinded)
+        messages.mapValues { (_, m) -> m.sliceArray(33 until m.size) } to rwd
+    }
+
+    val response = challenges.mapValues { (server, nonce) ->
+        getSignKey(hostId[server]!!, rwd).sign(requests[server]!! + nonce)
+    }
+    socket.broadcastToPeers(response)
+    val authResponse = socket.gather(6)
+    if (!authResponse.values.all { it contentEquals RESPONSE_AUTH }) {
+        throw Protocol.ServerFailureException()
+    }
 }
 
-private fun Protocol.CredentialStore.createSocket(): Socket = SSLSocketFactory.getDefault().createSocket(host, port)
+private fun Protocol.CredentialStore.createSocket(): Map<Protocol.Server, Socket> {
+    return servers.createSocket()
+}
+
+private fun Iterable<Protocol.Server>.createSocket(): Map<Protocol.Server, Socket> =
+    this.associateWith { srv -> SSLSocketFactory.getDefault().createSocket(srv.host, srv.port) }
+
+@OptIn(ExperimentalContracts::class)
+inline fun <T : Map<Protocol.Server, Socket>, R> T.use(block: (T) -> R): R {
+    contract {
+        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    }
+    var exception: Throwable? = null
+    try {
+        return block(this)
+    } catch (e: Throwable) {
+        exception = e
+        throw e
+    } finally {
+        this.forEach { (
+            _, s) -> s.androsphinxCloseFinally(exception) }
+    }
+}
+
+fun Closeable.androsphinxCloseFinally(cause: Throwable?): Unit = when {
+    cause == null -> close()
+    else ->
+        try {
+            close()
+        } catch (closeException: Throwable) {
+            cause.addSuppressed(closeException)
+        }
+}
 
 private fun ByteArray.equalsString(other: String): Boolean = contentEquals(other.toByteArray())
 
-private fun generateRandomXorMask(): BigInteger = BigInteger(POSITIVE, Sodium.randomBytes(XOR_MASK_BYTES))
+fun generateRandomXorMask(): BigInteger = BigInteger(POSITIVE, Sodium.randomBytes(XOR_MASK_BYTES))

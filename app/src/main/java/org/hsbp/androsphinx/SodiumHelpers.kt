@@ -16,7 +16,7 @@ enum class DerivationContext(private val value: String, private val hashLength: 
     ENCRYPTION("sphinx encryption key"),
     SALT("sphinx host salt"),
     CHECK_DIGIT("sphinx check digit context", hashLength = 1),
-    PASSWORD("sphinx password context");
+    PASSWORD("sphinx password context", hashLength = XOR_MASK_BYTES);
 
     fun foldHash(vararg messages: ByteArray): ByteArray =
         messages.fold(value.toByteArray()) { acc, message -> genericHash(acc, message, hashLength) }
@@ -69,7 +69,7 @@ value class Ed25519PrivateKey(val key: ByteArray) {
         }
 }
 
-private val VERSION: ByteArray = byteArrayOf(0)
+private val VERSION: ByteArray = byteArrayOf(1)
 
 @JvmInline
 value class AeadKey(private val key: ByteArray) {

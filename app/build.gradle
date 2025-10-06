@@ -52,7 +52,8 @@ dependencies {
     implementation 'com.commonsware.cwac:security:0.8.0'
     implementation 'com.nulab-inc:zxcvbn:1.9.0'
     implementation("io.arrow-kt:arrow-core:2.1.2")
-    androidTestImplementation("com.michael-bull.kotlin-itertools:kotlin-itertools:1.0.2")
+    implementation("com.danrusu.pods4k:pods4k:0.7.0")
+    implementation("com.michael-bull.kotlin-itertools:kotlin-itertools:1.0.2")
 }
 kotlin {
     compilerOptions {

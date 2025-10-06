@@ -21,38 +21,5 @@ enum class CharacterClass(private val bit: Int, internal val range: Set<Char>?, 
             entries.filterTo(EnumSet.noneOf(CharacterClass::class.java)) {
                 it.range != null && serialized.testBit(it.bit)
             }
-
-        fun derive(rwd: BigInteger, rule: Set<CharacterClass>, size: Int, syms: Set<Char> = SYMBOL_SET.toSet()): String {
-            require(rule.isNotEmpty() || syms.isNotEmpty()) { "At least one character class or symbol must be allowed." }
-            val order = arrayOf(UPPER, LOWER, DIGITS)
-            val chars = order.filter(rule::contains).flatMap { it.range!!.sorted() }.toList() + syms.sorted()
-            val password = encode(rwd, chars, size)
-            val result = if (size > 0) subArrayWithCleaning(password, size) else password
-            val str = String(result)
-            result.fill('\u0000')
-            return str
-        }
-
-        private fun encode(raw: BigInteger, chars: List<Char>, size: Int): CharArray {
-            val result = mutableListOf<Char>()
-            var v = raw
-            val divisor = chars.size.toBigInteger()
-            while ((size > 0 && result.size < size) || (size == 0 && v != BigInteger.ZERO)) {
-                val divMod = v.divideAndRemainder(divisor)
-                v = divMod[0]
-                result.add(chars[divMod[1].toInt()])
-            }
-            val password = result.toCharArray()
-            password.reverse()
-            result.forEachIndexed { index, _ -> result[index] = '\u0000' }
-            return password
-        }
-
-        private fun subArrayWithCleaning(input: CharArray, size: Int): CharArray {
-            if (input.size == size) return input
-            val result = input.sliceArray(0 until size)
-            input.fill('\u0000')
-            return result
-        }
     }
 }

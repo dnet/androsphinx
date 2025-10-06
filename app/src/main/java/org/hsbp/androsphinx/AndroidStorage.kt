@@ -20,7 +20,7 @@ const val SHARED_PREFERENCES_KEY_RWD_KEYS = "rwd_keys"
 
 class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStore {
     val isSetUpForCommunication: Boolean
-        get() = host.isNotEmpty() and (port != 0)
+        get() = servers.isNotEmpty()
 
     override val key: MasterKey
         get() = try {
@@ -30,6 +30,9 @@ class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStor
         } catch (e: IOException) {
             MasterKey.generate().also(this::writeMasterKey)
         }
+
+    override val servers: List<Protocol.Server>
+        get() = TODO("Not yet implemented")
 
     fun writeMasterKey(newKey: MasterKey) {
         keyFile.delete()
@@ -49,14 +52,11 @@ class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStor
     private val keyFile: File
         get() = File(ctx.filesDir, FILE_NAME_KEY)
 
-    override val host: String
-        get() = sharedPreferences.getString(SHARED_PREFERENCES_KEY_HOST, "")!!
-
-    override val port: Int
-        get() = sharedPreferences.getInt(SHARED_PREFERENCES_KEY_PORT, 0)
-
     override val rwdKeys: Boolean
         get() = sharedPreferences.getBoolean(SHARED_PREFERENCES_KEY_RWD_KEYS, false)
+
+    override val threshold: Int
+        get() = TODO("Not yet implemented")
 
     private val sharedPreferences: SharedPreferences
         get() = PreferenceManager.getDefaultSharedPreferences(ctx)
