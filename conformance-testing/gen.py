@@ -35,9 +35,15 @@ from cryptography import x509
     help="Path to the PEM-encoded private key matching the leaf certificate",
     type=click.File(mode="rb"),
 )
+@click.option(
+    "--sslkeylogfile",
+    required=False,
+    help="Path to SSLKEYLOGFILE for TLS (Pre)MasterSecret logging",
+    type=click.File(mode="ab"),
+)
 @click.option("--oracles", default=5, type=int, help="Number of oracles to create")
 @click.option("--threshold", default=3, type=int, help="Threshold to set in client")
-def gen(cert, key, oracles, threshold):
+def gen(cert, key, oracles, threshold, sslkeylogfile):
     """Generates a test environment"""
     certs = load_pem_x509_certificates(cert.read())
     pkey = load_pem_private_key(key.read(), None)
@@ -67,13 +73,21 @@ def gen(cert, key, oracles, threshold):
         (voldir / "ltsigkey").write_bytes(sk)
         services[prefix] = {
             "build": "..",
+            "ports": [f"2355{n}:2355"],
             "volumes": [
                 f"{Path(v).absolute()}:/cert/{k}.pem:ro"
                 for k, v in [("key", key.name), ("cert", cert.name)]
             ]
-            + [f"{voldir.absolute()}:/sphinx"],
+            + [f"{voldir.absolute()}:/sphinx"]
+            + (
+                [f"{Path(sslkeylogfile.name).absolute()}:/sslkeylogfile"]
+                if sslkeylogfile
+                else []
+            ),
             "networks": {"default": {"aliases": [host]}},
         }
+        if sslkeylogfile:
+            services[prefix]["environment"] = {"SSLKEYLOGFILE": "/sslkeylogfile"}
     client = {
         "servers": servers,
         "client": {
