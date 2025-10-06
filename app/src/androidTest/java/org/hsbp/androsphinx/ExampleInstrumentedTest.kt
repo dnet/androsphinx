@@ -308,7 +308,7 @@ private fun processCommand(cmd: String, pw: PrintWriter, cs: Protocol.Credential
             }
             else -> pw.println("Unknown command")
         }
-    } catch (s: Protocol.ServerFailureException) {
+    } catch (_: Protocol.ServerFailureException) {
         pw.println("Server failure")
     }
 }
