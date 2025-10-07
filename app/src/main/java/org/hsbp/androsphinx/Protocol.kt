@@ -68,7 +68,6 @@ class Protocol {
                 cs.createSocket().apply { broadcastToPeers(requests) }
             }
             s.use { socket ->
-                check(cs.servers.size > 1) // TODO
                 val responses = try {
                     socket.gather(
                         33 + ENCRYPTED_RULE_LENGTH,
@@ -79,7 +78,13 @@ class Protocol {
                 }
                 val rules = responses.values.map { it.sliceArray(33 until it.size) }
                 val rule = rules.first()
-                val beta = Oprf.thresholdMult(responses.values.map { it.sliceArray(0 until 33) })
+                val beta = if (cs.servers.size > 1) {
+                    Oprf.thresholdMult(responses.values.map { it.sliceArray(0 until 33) })
+                } else {
+                    responses.values.first().sliceArray(1 until 33).apply {
+                        if (this contentEquals RESPONSE_FAIL) throw ServerFailureException()
+                    }
+                }
                 val unblinded = Oprf.unblindFinalize(r, beta, toBytes(password.clone()))
                 val rwd = realm.oprfToRwd(cs, unblinded)
                 val result = body?.invoke(socket, rwd, rule)
@@ -208,8 +213,15 @@ class Protocol {
             val baseRule = Rule(charClasses, symbols, size.toBigInteger(), BigInteger.ZERO)
             val (r, alpha) = Oprf.blind(toBytes(password.clone()))
             val hostId = realm.hash(cs)
-            check(cs.threshold > 1) // TODO
-            val (socket, beta) = cs.dkg(Command.CREATE_DKG, hostId, alpha)
+            val (socket, beta) = if (cs.threshold > 1) {
+                cs.dkg(Command.CREATE_DKG, hostId, alpha)
+            } else {
+                val s = cs.createSocket()
+                val cmd = hostId[cs.servers.first()]!! + alpha
+                s.broadcastToPeers(Command.CREATE.serializeCommand(cs.servers.associateWith { cmd }))
+                val beta = s.gather(33).values.first()
+                s to beta.sliceArray(1 until beta.size)
+            }
             val unblinded = Oprf.unblindFinalize(r, beta, toBytes(password.clone()))
             val rwd = realm.oprfToRwd(cs, unblinded)
             val rule = baseRule.withXorMaskFor(rwd)
