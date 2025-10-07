@@ -2,7 +2,6 @@ package org.hsbp.androsphinx
 
 import android.util.Base64
 import com.danrusu.pods4k.immutableArrays.ImmutableByteArray
-import com.danrusu.pods4k.immutableArrays.buildImmutableByteArray
 
 /**
  * 
