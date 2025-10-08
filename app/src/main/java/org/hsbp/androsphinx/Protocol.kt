@@ -268,7 +268,7 @@ class Protocol {
             cs.auth(socket, hostId, messages, AuthContext(alpha, password, r, realm))
             updateUserList(socket, cs, realm) { users -> if (users.isEmpty()) null else users - realm.username }
             check(socket.gather(2).values.all(RESPONSE_OK::contentEquals),
-                { "failed to update rules" })
+                { "failed to update user list" })
         }
 
         fun list(hostname: String, cs: CredentialStore): Set<String> {
