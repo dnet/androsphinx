@@ -246,7 +246,6 @@ class Protocol {
             cs.auth(socket, hostId, messages, AuthContext(alpha, password, r, realm))
             check(socket.gather(2).values.all(RESPONSE_OK::contentEquals),
                 { "failed to update rules" })
-            // TODO Command.COMMIT.connect<Void>(cs, password, realm.hash(cs))
         }
 
         fun undo(password: CharArray, realm: Realm, cs: CredentialStore) {
@@ -258,7 +257,6 @@ class Protocol {
             cs.auth(socket, hostId, messages, AuthContext(alpha, password, r, realm))
             check(socket.gather(2).values.all(RESPONSE_OK::contentEquals),
                 { "failed to update rules" })
-            // TODO Command.UNDO.connect<Void>(cs, password, realm.hash(cs))
         }
 
         fun delete(password: CharArray, realm: Realm, cs: CredentialStore) {
@@ -271,9 +269,6 @@ class Protocol {
             updateUserList(socket, cs, realm) { users -> if (users.isEmpty()) null else users - realm.username }
             check(socket.gather(2).values.all(RESPONSE_OK::contentEquals),
                 { "failed to update rules" })
-            /* TODO Command.DELETE.connect(cs, password, realm.hash(cs)) { s, _ ->
-                updateUserList(s, cs, realm) { users -> if (users.isEmpty()) null else users - realm.username }
-            }*/
         }
 
         fun list(hostname: String, cs: CredentialStore): Set<String> {
