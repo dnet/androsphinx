@@ -2,11 +2,6 @@ package org.hsbp.androsphinx
 
 class Oprf {
     companion object {
-        init {
-            System.loadLibrary("oprf")
-            System.loadLibrary("sphinx")
-        }
-
         @JvmStatic external fun blind(inputValue: ByteArray): Pair<ByteArray, ByteArray>
         @JvmStatic external fun evaluate(key: ByteArray, blinded: ByteArray): ByteArray
         @JvmStatic external fun unblindFinalize(r: ByteArray, z: ByteArray, x: ByteArray): ByteArray?
