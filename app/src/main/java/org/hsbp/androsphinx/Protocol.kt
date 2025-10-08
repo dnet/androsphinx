@@ -232,8 +232,7 @@ class Protocol {
             val rwd = realm.oprfToRwd(cs, unblinded!!)
             val rule = baseRule.withXorMaskFor(rwd)
             cs.sendRule(socket, rule, rwd, hostId)
-            check(socket.gather(2).values.all(RESPONSE_OK::contentEquals),
-                { "failed to update rules" })
+            socket.checkOK()
             return rule.derive(rwd)
         }
 
@@ -244,8 +243,7 @@ class Protocol {
             val messages = Command.COMMIT.serializeCommand(cmd)
             val socket = Command.COMMIT.performRateLimit(cs, messages)
             cs.auth(socket, hostId, messages, AuthContext(alpha, password, r, realm))
-            check(socket.gather(2).values.all(RESPONSE_OK::contentEquals),
-                { "failed to update rules" })
+            socket.checkOK()
         }
 
         fun undo(password: CharArray, realm: Realm, cs: CredentialStore) {
@@ -255,8 +253,7 @@ class Protocol {
             val messages = Command.UNDO.serializeCommand(cmd)
             val socket = Command.UNDO.performRateLimit(cs, messages)
             cs.auth(socket, hostId, messages, AuthContext(alpha, password, r, realm))
-            check(socket.gather(2).values.all(RESPONSE_OK::contentEquals),
-                { "failed to update rules" })
+            socket.checkOK()
         }
 
         fun delete(password: CharArray, realm: Realm, cs: CredentialStore) {
@@ -267,8 +264,13 @@ class Protocol {
             val socket = Command.DELETE.performRateLimit(cs, messages)
             cs.auth(socket, hostId, messages, AuthContext(alpha, password, r, realm))
             updateUserList(socket, cs, realm) { users -> if (users.isEmpty()) null else users - realm.username }
-            check(socket.gather(2).values.all(RESPONSE_OK::contentEquals),
-                { "failed to update user list" })
+            socket.checkOK()
+        }
+
+        private fun Map<Server, Socket>.checkOK() {
+            if (!gather(2).values.all(RESPONSE_OK::contentEquals)) {
+                throw ServerFailureException()
+            }
         }
 
         fun list(hostname: String, cs: CredentialStore): Set<String> {
