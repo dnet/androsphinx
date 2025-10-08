@@ -36,16 +36,15 @@ const val TS_EPSILON: Long = 1200 // TODO make configurable
 
 class Protocol {
     enum class Command(val code: Byte,
-                       val writeRule: Boolean = false, val rateLimit: Boolean = true,
                        val requiredResponses: RequiredResponses = RequiredResponses.ALL) {
-        CREATE(0x00, writeRule = true, rateLimit = false),
+        CREATE(0x00),
         CREATE_DKG(0xf0.toByte()),
         READ(0x33, requiredResponses = RequiredResponses.THRESHOLD),
         UNDO(0x55),
         CHALLENGE_CREATE(0x5a, requiredResponses = RequiredResponses.CHALLENGE),
         GET(0x66, requiredResponses = RequiredResponses.THRESHOLD),
         COMMIT(0x99.toByte()),
-        CHANGE(0xAA.toByte(), writeRule = true),
+        CHANGE(0xAA.toByte()),
         CHANGE_DKG(0xa0.toByte()),
         CHALLENGE_VERIFY(0xA5.toByte(), requiredResponses = RequiredResponses.CHALLENGE),
         WRITE(0xCC.toByte()), DELETE(0xFF.toByte());
@@ -62,11 +61,7 @@ class Protocol {
                 message.put(alpha)
                 message.array()
             }
-            val s = if (rateLimit) {
-                performRateLimit(cs, requests)
-            } else {
-                cs.createSocket().apply { broadcastToPeers(requests) }
-            }
+            val s = performRateLimit(cs, requests)
             s.use { socket ->
                 val responses = try {
                     socket.gather(
