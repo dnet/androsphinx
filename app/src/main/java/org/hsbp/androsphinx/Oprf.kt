@@ -9,7 +9,7 @@ class Oprf {
 
         @JvmStatic external fun blind(inputValue: ByteArray): Pair<ByteArray, ByteArray>
         @JvmStatic external fun evaluate(key: ByteArray, blinded: ByteArray): ByteArray
-        @JvmStatic external fun unblindFinalize(r: ByteArray, z: ByteArray, x: ByteArray): ByteArray
+        @JvmStatic external fun unblindFinalize(r: ByteArray, z: ByteArray, x: ByteArray): ByteArray?
         @JvmStatic external fun thresholdMult(responses: List<ByteArray>): ByteArray
         @JvmStatic external fun scalarMultRistretto255base(r: ByteArray): ByteArray?
         @JvmStatic external fun tpDkgStartTp(n: Byte, t: Byte, tsEpsilon: Long, protoName: String, peerLongTermPublicKeys: List<ByteArray>): Pair<TpdkgContext, ByteArray>

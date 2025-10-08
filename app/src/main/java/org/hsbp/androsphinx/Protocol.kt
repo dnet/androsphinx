@@ -86,7 +86,7 @@ class Protocol {
                     }
                 }
                 val unblinded = Oprf.unblindFinalize(r, beta, toBytes(password.clone()))
-                val rwd = realm.oprfToRwd(cs, unblinded)
+                val rwd = realm.oprfToRwd(cs, unblinded!!)
                 val result = body?.invoke(socket, rwd, rule)
                 return result
             }
@@ -223,7 +223,7 @@ class Protocol {
                 s to beta.sliceArray(1 until beta.size)
             }
             val unblinded = Oprf.unblindFinalize(r, beta, toBytes(password.clone()))
-            val rwd = realm.oprfToRwd(cs, unblinded)
+            val rwd = realm.oprfToRwd(cs, unblinded!!)
             val rule = baseRule.withXorMaskFor(rwd)
             cs.sendRule(socket, rule, rwd, hostId)
             updateUserList(socket, cs, realm) { users -> users + realm.username }
@@ -260,7 +260,7 @@ class Protocol {
                 b.values.first().sliceArray(1 until 33)
             }
             val unblinded = Oprf.unblindFinalize(r2, beta2, toBytes(password.clone()))
-            val rwd = realm.oprfToRwd(cs, unblinded)
+            val rwd = realm.oprfToRwd(cs, unblinded!!)
             val rule = baseRule.withXorMaskFor(rwd)
             cs.sendRule(socket, rule, rwd, hostId)
             check(socket.gather(2).values.all(RESPONSE_OK::contentEquals),
@@ -547,7 +547,7 @@ fun Protocol.CredentialStore.auth(
             messages.values.first().sliceArray(1 until 33)
         }
         val unblinded = Oprf.unblindFinalize(context.r, beta, toBytes(context.password.clone()))
-        val rwd = context.realm.oprfToRwd(this, unblinded)
+        val rwd = context.realm.oprfToRwd(this, unblinded!!)
         messages.mapValues { (_, m) -> m.sliceArray(33 until m.size) } to rwd
     }
 
