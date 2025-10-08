@@ -172,62 +172,66 @@ class ExampleInstrumentedTest {
 
     @Test
     fun sphinxNetworkTest() {
-        val cs = MockCredentialStore()
         val username = "network"
         val username2 = "network2"
-        val hostname = "test${System.currentTimeMillis()}.tld"
-        val realm = Protocol.Realm(username, hostname)
-        val realm2 = Protocol.Realm(username2, hostname)
         val charClasses = setOf(CharacterClass.LOWER, CharacterClass.DIGITS)
         val size = 18
 
-        assert(Protocol.list(hostname, cs).isEmpty())
+        for ((n, t) in listOf(1 to 1, 5 to 3)) {
+            println("====== n = $n, t = $t ======")
+            val cs = MockCredentialStore(n, t)
+            val hostname = "test${System.currentTimeMillis()}.tld"
+            val realm = Protocol.Realm(username, hostname)
+            val realm2 = Protocol.Realm(username2, hostname)
 
-        val symbolSet = SYMBOL_SET.substring(0 .. SYMBOL_SET.length / 2).toSet()
-        val pw = Protocol.create("sphinxNetworkTestMasterPassword".toCharArray(), realm, charClasses, cs, symbolSet, size)
-        assertEquals(size, pw.length)
-        assert(pw.all { pwChar -> charClasses.any { it.range?.contains(pwChar) ?: false } or (pwChar in symbolSet) })
-        val userList = Protocol.list(hostname, cs)
-        assertEquals(1, userList.size)
-        assert(userList.contains(username))
+            assert(Protocol.list(hostname, cs).isEmpty())
 
-        Protocol.create("sphinxNetworkTestMasterPassword2".toCharArray(), realm2, charClasses, cs, symbolSet, size)
-        val userList2 = Protocol.list(hostname, cs)
-        assertEquals(2, userList2.size)
-        assert(userList2.contains(username))
-        assert(userList2.contains(username2))
+            val symbolSet = SYMBOL_SET.substring(0 .. SYMBOL_SET.length / 2).toSet()
+            val pw = Protocol.create("sphinxNetworkTestMasterPassword".toCharArray(), realm, charClasses, cs, symbolSet, size)
+            assertEquals(size, pw.length)
+            assert(pw.all { pwChar -> charClasses.any { it.range?.contains(pwChar) ?: false } or (pwChar in symbolSet) })
+            val userList = Protocol.list(hostname, cs)
+            assertEquals(1, userList.size)
+            assert(userList.contains(username))
 
-        val (gr, pwGet) = Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
-        assertEquals(pw, pwGet)
-        assertEquals(gr.charClasses, charClasses)
-        assertEquals(gr.size.toInt(), size)
+            Protocol.create("sphinxNetworkTestMasterPassword2".toCharArray(), realm2, charClasses, cs, symbolSet, size)
+            val userList2 = Protocol.list(hostname, cs)
+            assertEquals(2, userList2.size)
+            assert(userList2.contains(username))
+            assert(userList2.contains(username2))
 
-        val pwChanged = Protocol.change("sphinxNetworkTestMasterPassword".toCharArray(), realm, charClasses, cs, emptySet(), size)
-        assertFalse(pwChanged.contentEquals(pwGet))
+            val (gr, pwGet) = Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
+            assertEquals(pw, pwGet)
+            assertEquals(gr.charClasses, charClasses)
+            assertEquals(gr.size.toInt(), size)
 
-        val (_, pwBeforeCommit) = Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
-        assertEquals(pw, pwBeforeCommit)
+            val pwChanged = Protocol.change("sphinxNetworkTestMasterPassword".toCharArray(), realm, charClasses, cs, emptySet(), size)
+            assertFalse(pwChanged.contentEquals(pwGet))
 
-        Protocol.commit("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
+            val (_, pwBeforeCommit) = Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
+            assertEquals(pw, pwBeforeCommit)
 
-        val (_, pwAfterCommit) = Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
-        assertEquals(pwChanged, pwAfterCommit)
+            Protocol.commit("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
 
-        Protocol.undo("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
+            val (_, pwAfterCommit) = Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
+            assertEquals(pwChanged, pwAfterCommit)
 
-        val (_, pwAfterUndo) = Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
-        assertEquals(pw, pwAfterUndo)
+            Protocol.undo("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
 
-        Protocol.delete("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
-        val userList3 = Protocol.list(hostname, cs)
-        assertEquals(1, userList3.size)
-        assert(userList3.contains(username2))
+            val (_, pwAfterUndo) = Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
+            assertEquals(pw, pwAfterUndo)
 
-        try {
-            Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
-            fail("ServerFailureException should've been thrown")
-        } catch (e: Protocol.ServerFailureException) {
-            // success
+            Protocol.delete("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
+            val userList3 = Protocol.list(hostname, cs)
+            assertEquals(1, userList3.size)
+            assert(userList3.contains(username2))
+
+            try {
+                Protocol.get("sphinxNetworkTestMasterPassword".toCharArray(), realm, cs)
+                fail("ServerFailureException should've been thrown")
+            } catch (e: Protocol.ServerFailureException) {
+                // success
+            }
         }
     }
 

@@ -21,12 +21,18 @@ val LONG_TERM_KEYS = arrayOf(
     "CtzTT5jA6v/LwP6Ks1NMeuh3/EqfabUGs2YeuEAr84I=",
 )
 
-class MockCredentialStore : Protocol.CredentialStore {
+class MockCredentialStore(private val n: Int = LONG_TERM_KEYS.size, private val t: Int = 3) : Protocol.CredentialStore {
+
+    init {
+        check(1 <= n && n <= LONG_TERM_KEYS.size)
+        check(t <= n)
+    }
+
     override val key: MasterKey
         get() = MasterKey.fromByteArray(Base64.decode(MOCK_KEY, Base64.DEFAULT))
 
     override val servers: List<Protocol.Server>
-        get() = (1..5).map {
+        get() = (1 .. n).map {
             Protocol.Server(name="oracle$it", host="oracle$it.sphinx.s2i.ninja", port=23550+it,
                 longTermSignatureKey = ImmutableByteArray.copyFrom(
                     kotlin.io.encoding.Base64.decode(LONG_TERM_KEYS[it - 1]),
@@ -37,5 +43,5 @@ class MockCredentialStore : Protocol.CredentialStore {
         get() = false
 
     override val threshold: Int
-        get() = 3
+        get() = t
 }
