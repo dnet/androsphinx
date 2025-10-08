@@ -246,13 +246,19 @@ class Protocol {
             val baseRule = Rule(charClasses, symbols, size.toBigInteger(), BigInteger.ZERO)
             val (r, alpha) = Oprf.blind(toBytes(password.clone()))
             val hostId = realm.hash(cs)
-            check(cs.threshold > 1) // TODO
             val cmd = hostId.mapValues { (_, id) -> id + alpha }
-            val messages = Command.CHANGE_DKG.serializeCommand(cmd)
-            val socket = Command.CHANGE_DKG.performRateLimit(cs, messages)
+            val op = if (cs.threshold > 1) Command.CHANGE_DKG else Command.CHANGE
+            val messages = op.serializeCommand(cmd)
+            val socket = op.performRateLimit(cs, messages)
             cs.auth(socket, hostId, messages, AuthContext(alpha, password, r, realm))
             val (r2, alpha2) = Oprf.blind(toBytes(password.clone()))
-            val (_, beta2) = cs.dkg(Command.CHANGE_DKG, hostId, alpha2, socket)
+            val beta2 = if (cs.threshold > 1) {
+                cs.dkg(Command.CHANGE_DKG, hostId, alpha2, socket).second
+            } else {
+                socket.broadcastToPeers(cs.servers.associateWith { alpha2 })
+                val b = socket.gather(33, 1)
+                b.values.first().sliceArray(1 until 33)
+            }
             val unblinded = Oprf.unblindFinalize(r2, beta2, toBytes(password.clone()))
             val rwd = realm.oprfToRwd(cs, unblinded)
             val rule = baseRule.withXorMaskFor(rwd)
@@ -535,8 +541,11 @@ fun Protocol.CredentialStore.auth(
         } to ByteArray(0)
     } else {
         val messages = socket.gather(65)
-        check(servers.size > 1) // TODO
-        val beta = Oprf.thresholdMult(messages.values.asSequence().windowed(threshold).first().map { it.sliceArray(0 until 33) })
+        val beta = if (servers.size > 1) {
+            Oprf.thresholdMult(messages.values.asSequence().windowed(threshold).first().map { it.sliceArray(0 until 33) })
+        } else {
+            messages.values.first().sliceArray(1 until 33)
+        }
         val unblinded = Oprf.unblindFinalize(context.r, beta, toBytes(context.password.clone()))
         val rwd = context.realm.oprfToRwd(this, unblinded)
         messages.mapValues { (_, m) -> m.sliceArray(33 until m.size) } to rwd
