@@ -6,9 +6,6 @@ package org.hsbp.androsphinx
 import java.nio.charset.Charset
 import java.nio.CharBuffer
 
-const val SPHINX_255_SCALAR_BYTES: Int = 32
-const val SPHINX_255_SER_BYTES: Int = 32
-const val DECAF_255_SER_BYTES: Int = 32
 const val CRYPTO_GENERICHASH_BYTES: Int = 32
 const val CRYPTO_SIGN_SECRETKEYBYTES: Int = 64
 const val CRYPTO_SIGN_PUBLICKEYBYTES: Int = 32
@@ -31,31 +28,6 @@ class Sodium {
         @JvmStatic external fun cryptoAeadXchachaPoly1305IetfEasy(msg: ByteArray, ad: ByteArray, key: ByteArray): ByteArray?
         @JvmStatic external fun cryptoAeadXchachaPoly1305IetfOpenEasy(msg: ByteArray, ad: ByteArray, key: ByteArray): ByteArray?
         @JvmStatic external fun passwordHash(outputLength: Int, password: ByteArray, salt: ByteArray): ByteArray?
-    }
-}
-
-class Sphinx {
-    companion object {
-        @JvmStatic private external fun challenge(password: ByteArray, salt: ByteArray, blindingFactor: ByteArray, challenge: ByteArray)
-        @JvmStatic external fun respond(challenge: ByteArray, secret: ByteArray): ByteArray?
-        @JvmStatic private external fun finish(password: ByteArray, blindingFactor: ByteArray, salt: ByteArray, resp: ByteArray): ByteArray?
-    }
-
-    class Challenge(pwd: CharArray, salt: ByteArray = ByteArray(0)) : AutoCloseable {
-        private val blindingFactor: ByteArray = ByteArray(SPHINX_255_SCALAR_BYTES)
-        val challenge: ByteArray = ByteArray(SPHINX_255_SER_BYTES)
-        private val passwordBytes = toBytes(pwd)
-
-        init {
-            challenge(passwordBytes, salt, blindingFactor, challenge)
-        }
-
-        fun finish(salt: ByteArray, response: ByteArray): ByteArray? =
-            finish(passwordBytes, blindingFactor, salt, response)
-
-        override fun close() {
-            challenge.fill(0)
-        }
     }
 }
 

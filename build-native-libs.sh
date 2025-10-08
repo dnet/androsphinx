@@ -44,13 +44,7 @@ compile_libsphinx_arch() {
 	make clean
 	make CXX=$2++ SODIUM=../$SODIUM/src/libsodium/include android
 	cp libequihash.so $ANDROID_NDK_TOOLCHAIN/sysroot/usr/lib/$NDK_ARCH/libc++_shared.so $TARGET_EQUIHASH
-
-	cd ../$SPHINX/src
-	cp $TARGET/libsodium.so .
-	make clean
-	make CC=$2 SODIUM=../../$SODIUM/src/libsodium/include android
-	cp libsphinx.so $TARGET
-	cd ../..
+	cd ..
 }
 
 git submodule update --init --recursive

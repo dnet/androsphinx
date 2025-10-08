@@ -426,9 +426,6 @@ private fun updateUserList(socket: Map<Protocol.Server, Socket>, cs: Protocol.Cr
     })
 }
 
-fun Sphinx.Challenge.finish(salt: ByteArray, stream: InputStream): ByteArray =
-    finish(salt, stream.readExactly(DECAF_255_SER_BYTES)) ?: throw Protocol.ServerFailureException()
-
 fun Protocol.CredentialStore.sendRule(socket: Map<Protocol.Server, Socket>, rule: Rule,
                                               newRwd: ByteArray, hostId: Map<Protocol.Server, ByteArray>) {
     val sealKey = getSealKey()
