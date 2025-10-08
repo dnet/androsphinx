@@ -49,69 +49,9 @@ class Protocol {
         CHALLENGE_VERIFY(0xA5.toByte(), requiredResponses = RequiredResponses.CHALLENGE),
         WRITE(0xCC.toByte()), DELETE(0xFF.toByte());
 
-        fun <T> connect(cs: CredentialStore, password: CharArray, id: Map<Server, ByteArray>,
-                                realm: Realm,
-                        body: ((Map<Server, Socket>, ByteArray, ByteArray) -> T)? = null): T? {
-            val (r, alpha) = Oprf.blind(toBytes(password.clone())) // TODO only CREATE + GET?
-
-            val requests = id.mapValues { entry ->
-                val message = ByteBuffer.allocate(DECAF_255_SER_BYTES + CRYPTO_GENERICHASH_BYTES + 1)
-                message.put(code)
-                message.put(entry.value)
-                message.put(alpha)
-                message.array()
-            }
-            val s = performRateLimit(cs, requests)
-            s.use { socket ->
-                val responses = try {
-                    socket.gather(
-                        33 + ENCRYPTED_RULE_LENGTH,
-                        cs.threshold
-                    )
-                } catch (_: IllegalStateException) {
-                    throw ServerFailureException()
-                }
-                val rules = responses.values.map { it.sliceArray(33 until it.size) }
-                val rule = rules.first()
-                val beta = if (cs.servers.size > 1) {
-                    Oprf.thresholdMult(responses.values.map { it.sliceArray(0 until 33) })
-                } else {
-                    responses.values.first().sliceArray(1 until 33).apply {
-                        if (this contentEquals RESPONSE_FAIL) throw ServerFailureException()
-                    }
-                }
-                val unblinded = Oprf.unblindFinalize(r, beta, toBytes(password.clone()))
-                val rwd = realm.oprfToRwd(cs, unblinded!!)
-                val result = body?.invoke(socket, rwd, rule)
-                return result
-            }
-        }
-
-
-
         enum class RequiredResponses {
             ALL, THRESHOLD, CHALLENGE
         }
-
-        fun execute(realm: Realm, password: CharArray, cs: CredentialStore,
-                    createRule: Rule? = null): Pair<Rule, String> {
-            val hostId = realm.hash(cs)
-            return connect(cs, password, hostId, realm) { s, oldRwd, rule ->
-                val newRwd = oldRwd
-
-                val rule = if (createRule == null) {
-                    val (_, ruleBytes) = cs.getSealKey().decrypt(rule)
-                    Rule.parse(ruleBytes).apply {
-                        if (checkDigit != calculateCheckDigit(newRwd).and(CHECK_DIGIT_MASK)) {
-                            throw CheckDigitMismatchException()
-                        }
-                    }
-                } else createRule.withCheckDigit(calculateCheckDigit(newRwd))
-
-                rule to rule.derive(newRwd)
-            }!!
-        }
-
 
         fun performRateLimit(cs: CredentialStore, requests: Map<Server, ByteArray>): Map<Server, Socket> {
             val challenges = cs.createSocket().use { s ->
@@ -230,7 +170,41 @@ class Protocol {
         }
 
         fun get(password: CharArray, realm: Realm, cs: CredentialStore): Pair<Rule, String> {
-            return Command.GET.execute(realm, password, cs)
+            val hostId = realm.hash(cs)
+            val (r, alpha) = Oprf.blind(toBytes(password.clone()))
+            val cmd = hostId.mapValues { (_, id) -> id + alpha }
+            val requests = Command.GET.serializeCommand(cmd)
+            val s = Command.GET.performRateLimit(cs, requests)
+            s.use { socket ->
+                val responses = try {
+                    socket.gather(
+                        33 + ENCRYPTED_RULE_LENGTH,
+                        cs.threshold
+                    )
+                } catch (_: IllegalStateException) {
+                    throw ServerFailureException()
+                }
+                val sealKey = cs.getSealKey()
+                val rules = responses.values.map { sealKey.decrypt(it.sliceArray(33 until it.size)).second }
+                val rule = rules.ensureMatchingByteArrays()
+                val beta = if (cs.servers.size > 1) {
+                    Oprf.thresholdMult(responses.values.map { it.sliceArray(0 until 33) })
+                } else {
+                    responses.values.first().sliceArray(1 until 33).apply {
+                        if (this contentEquals RESPONSE_FAIL) throw ServerFailureException()
+                    }
+                }
+                val unblinded = Oprf.unblindFinalize(r, beta, toBytes(password.clone()))
+                val rwd = realm.oprfToRwd(cs, unblinded!!)
+
+                val parsedRule = Rule.parse(rule).apply {
+                    if (checkDigit != calculateCheckDigit(rwd).and(CHECK_DIGIT_MASK)) {
+                        throw CheckDigitMismatchException()
+                    }
+                }
+
+                return parsedRule to parsedRule.derive(rwd)
+            }
         }
 
         fun change(password: CharArray, realm: Realm, charClasses: Set<CharacterClass>,
