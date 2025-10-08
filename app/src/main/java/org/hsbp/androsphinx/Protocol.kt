@@ -53,6 +53,20 @@ class Protocol {
             ALL, THRESHOLD, CHALLENGE
         }
 
+        fun executeVoidCommand(
+            password: CharArray,
+            realm: Realm,
+            cs: CredentialStore
+        ): Map<Server, Socket> {
+            val (r, alpha) = Oprf.blind(toBytes(password.clone()))
+            val hostId = realm.hash(cs)
+            val cmd = hostId.mapValues { (_, id) -> id + alpha }
+            val messages = serializeCommand(cmd)
+            val socket = performRateLimit(cs, messages)
+            cs.auth(socket, hostId, messages, AuthContext(alpha, password, r, realm))
+            return socket
+        }
+
         fun performRateLimit(cs: CredentialStore, requests: Map<Server, ByteArray>): Map<Server, Socket> {
             val challenges = cs.createSocket().use { s ->
                 val rr = when (requiredResponses) {
@@ -237,32 +251,15 @@ class Protocol {
         }
 
         fun commit(password: CharArray, realm: Realm, cs: CredentialStore) {
-            val (r, alpha) = Oprf.blind(toBytes(password.clone()))
-            val hostId = realm.hash(cs)
-            val cmd = hostId.mapValues { (_, id) -> id + alpha }
-            val messages = Command.COMMIT.serializeCommand(cmd)
-            val socket = Command.COMMIT.performRateLimit(cs, messages)
-            cs.auth(socket, hostId, messages, AuthContext(alpha, password, r, realm))
-            socket.checkOK()
+            Command.COMMIT.executeVoidCommand(password, realm, cs).checkOK()
         }
 
         fun undo(password: CharArray, realm: Realm, cs: CredentialStore) {
-            val (r, alpha) = Oprf.blind(toBytes(password.clone()))
-            val hostId = realm.hash(cs)
-            val cmd = hostId.mapValues { (_, id) -> id + alpha }
-            val messages = Command.UNDO.serializeCommand(cmd)
-            val socket = Command.UNDO.performRateLimit(cs, messages)
-            cs.auth(socket, hostId, messages, AuthContext(alpha, password, r, realm))
-            socket.checkOK()
+            Command.UNDO.executeVoidCommand(password, realm, cs).checkOK()
         }
 
         fun delete(password: CharArray, realm: Realm, cs: CredentialStore) {
-            val (r, alpha) = Oprf.blind(toBytes(password.clone()))
-            val hostId = realm.hash(cs)
-            val cmd = hostId.mapValues { (_, id) -> id + alpha }
-            val messages = Command.DELETE.serializeCommand(cmd)
-            val socket = Command.DELETE.performRateLimit(cs, messages)
-            cs.auth(socket, hostId, messages, AuthContext(alpha, password, r, realm))
+            val socket = Command.DELETE.executeVoidCommand(password, realm, cs)
             updateUserList(socket, cs, realm) { users -> if (users.isEmpty()) null else users - realm.username }
             socket.checkOK()
         }
