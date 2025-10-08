@@ -293,23 +293,6 @@ class Protocol {
                 }
                 return receiveUsernameList(socket, cs.getSealKey()) ?: emptySet()
             }
-
-            /*val hostId = Realm(hostname = hostname, username = "").hash(cs)
-            val request = byteArrayOf(Command.READ.code) + hostId
-            val socket = try {
-                performRateLimit(cs, request)
-            } catch (e: ServerFailureException) {
-                return emptySet()
-            }
-            socket.use {
-                try {
-                    cs.auth(socket, hostId, ByteArray(0))
-                } catch (e: ServerFailureException) {
-                    return emptySet()
-                }
-                return receiveUsernameList(socket, cs.getSealKey()) ?: emptySet()
-            }*/
-            //return emptySet() // TODO
         }
     }
 }
