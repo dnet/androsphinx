@@ -4,68 +4,51 @@
 package org.hsbp.androsphinx
 
 import android.content.Context
-import android.content.SharedPreferences
-import androidx.preference.PreferenceManager
 import androidx.security.crypto.EncryptedFile
 import androidx.security.crypto.MasterKeys
 import java.io.File
-import java.io.IOException
 
-private const val FILE_NAME_KEY = "key"
+private const val FILE_NAME_CONFIG = "config"
 private val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
 
-const val SHARED_PREFERENCES_KEY_HOST = "host"
-const val SHARED_PREFERENCES_KEY_PORT = "port"
-const val SHARED_PREFERENCES_KEY_RWD_KEYS = "rwd_keys"
 
 class AndroidCredentialStore(private val ctx: Context) : Protocol.CredentialStore {
-    val isSetUpForCommunication: Boolean
-        get() = servers.isNotEmpty()
 
-    override val key: MasterKey
-        get() = try {
-            encryptedKeyFile.openFileInput().use {
-                MasterKey.fromByteArray(it.readBytes())
-            }
-        } catch (e: IOException) {
-            MasterKey.generate().also(this::writeMasterKey)
-        }
-
-    override val servers: List<Protocol.Server>
-        get() = TODO("Not yet implemented")
-
-    fun writeMasterKey(newKey: MasterKey) {
-        keyFile.delete()
+    fun updateSettings(source: Protocol.CredentialStore) {
+        val plainBytes = ShareType.PRIVATE.serialize(source)
         encryptedKeyFile.openFileOutput().use {
-            it.write(newKey.asBytes)
+            it.write(plainBytes)
         }
     }
 
-    val keyFileExists: Boolean
-        get() = keyFile.exists()
+    private val encryptedSerializedCredentialStore: SerializedCredentialStore // TODO cache this
+        get() = encryptedKeyFile.openFileInput().use {
+            SerializedCredentialStore(it.readBytes())
+        }
+
+    val isSetUpForCommunication: Boolean
+        get() = configFileExists && servers.isNotEmpty()
+
+    override val key: MasterKey
+        get() = encryptedSerializedCredentialStore.key
+
+    override val servers: List<Protocol.Server>
+        get() = encryptedSerializedCredentialStore.servers
+
+    val configFileExists: Boolean
+        get() = configFile.exists()
 
     private val encryptedKeyFile: EncryptedFile
-        get() = EncryptedFile.Builder(keyFile, ctx, masterKeyAlias,
+        get() = EncryptedFile.Builder(configFile, ctx, masterKeyAlias,
             EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
         ).build()
 
-    private val keyFile: File
-        get() = File(ctx.filesDir, FILE_NAME_KEY)
+    private val configFile: File
+        get() = File(ctx.filesDir, FILE_NAME_CONFIG)
 
     override val rwdKeys: Boolean
-        get() = sharedPreferences.getBoolean(SHARED_PREFERENCES_KEY_RWD_KEYS, false)
+        get() = encryptedSerializedCredentialStore.rwdKeys
 
     override val threshold: Int
-        get() = TODO("Not yet implemented")
-
-    private val sharedPreferences: SharedPreferences
-        get() = PreferenceManager.getDefaultSharedPreferences(ctx)
-}
-
-fun Context.storeServerInfo(host: String, port: Int) {
-    with(PreferenceManager.getDefaultSharedPreferences(this).edit()) {
-        putString(SHARED_PREFERENCES_KEY_HOST, host)
-        putInt(SHARED_PREFERENCES_KEY_PORT, port)
-        commit()
-    }
+        get() = encryptedSerializedCredentialStore.threshold
 }

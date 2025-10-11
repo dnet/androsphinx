@@ -152,22 +152,36 @@ class ExampleInstrumentedTest {
     }
 
     @Test
+    fun settingsSerializationTest() {
+        val cs = MockCredentialStore()
+        val bytes = ShareType.PRIVATE.serialize(cs)
+        val parsed = SerializedCredentialStore(bytes)
+        assert(cs.key.contentEquals(parsed.key))
+        assertEquals(cs.rwdKeys, parsed.rwdKeys)
+        assertEquals(cs.threshold, parsed.threshold)
+        assertEquals(cs.servers, parsed.servers)
+    }
+
+    @Test
     fun storageTest() {
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        try {
+            AndroidCredentialStore(appContext).key
+            fail("FileNotFoundException should have been thrown")
+        } catch (_: java.io.FileNotFoundException) {
+            // expected
+        }
+        val mock = MockCredentialStore()
+        AndroidCredentialStore(appContext).updateSettings(mock)
         val storage = AndroidCredentialStore(appContext)
         val key = storage.key
         assertEquals(MASTER_KEY_BYTES, key.asBytes.size)
         assertArrayEquals(storage.key.asBytes, key.asBytes)
+        assertArrayEquals(key.asBytes, mock.key.asBytes)
 
-        assertEquals("", storage.host)
-        assertEquals(0, storage.port)
-
-        val host = "example.tld"
-        val port = 31337
-        appContext.storeServerInfo(host, port)
-
-        assertEquals(host, storage.host)
-        assertEquals(port, storage.port)
+        assertEquals(mock.servers, storage.servers)
+        assertEquals(mock.rwdKeys, storage.rwdKeys)
+        assertEquals(mock.threshold, storage.threshold)
     }
 
     @Test
