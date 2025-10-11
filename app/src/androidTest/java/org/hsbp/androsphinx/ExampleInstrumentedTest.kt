@@ -30,6 +30,9 @@ const val EXPECTED_BASIC_TEST = "ytPIZvsZlQAr/9nLg4MX0g2F+U0V6K141xEECIwNLEA="
 @Suppress("SpellCheckingInspection")
 const val EXPECTED_SOL = "AAAAAla2ZzCKSqru43jruW0FQAcmV0tdnJNE9r2ovD7R/BfjIVK2zg+STcclSSYqeTXUvUBVbzOL4Q4Im9W66oPk8XLcvqJVywe5dA=="
 
+@Suppress("SpellCheckingInspection")
+const val PWDSPHINX_QR = "HQNM5h9N09pwNN6YUGjXPoK0R+SSa9YknX/N21OcHVquvgWVohk7Po2j/YDrTf50TWWGiT3x+QKUwfTQ50ADqtRWPsuJ3bLlqsRDKxW7wJ6r2cqueKl6tC9l3bICvOoAf/05voMViVAZ/Krg+vRl+kmm0cOhPEX76YSEu5xnuc+vbDPyFe8uUrbia1pkbjRypoIibSaqWCMBgdluhLcICyGlMwrc00+YwOr/y8D+irNTTHrod/xKn2m1BrNmHrhAK/OCeJxjzy9KTM5JNZSA0nrFBRmZeRV6xUaZenmZeVmJnMbsECkjqBIj3EqMoUqMcSsxgSoxwa3EFKrEFIsSAI35O6w="
+
 @RunWith(AndroidJUnit4::class)
 class ExampleInstrumentedTest {
     @Test
@@ -160,6 +163,13 @@ class ExampleInstrumentedTest {
         assertEquals(cs.rwdKeys, parsed.rwdKeys)
         assertEquals(cs.threshold, parsed.threshold)
         assertEquals(cs.servers, parsed.servers)
+        val parsed2 = SerializedCredentialStore(Base64.decode(PWDSPHINX_QR, Base64.DEFAULT))
+        assert(cs.key.contentEquals(parsed2.key))
+        assertEquals(cs.rwdKeys, parsed2.rwdKeys)
+        assertEquals(cs.threshold, parsed2.threshold)
+        assertEquals(cs.servers.map {
+            Protocol.Server(it.name, it.host, 2355,
+                it.longTermSignatureKey) }, parsed2.servers)
     }
 
     @Test
