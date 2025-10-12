@@ -458,7 +458,7 @@ private fun Map<Protocol.Server, Socket>.readBE16(): Map<Protocol.Server, Int> {
     }
 }
 
-private fun InputStream.readExactly(length: Int): ByteArray {
+fun InputStream.readExactly(length: Int): ByteArray {
     val buffer = ByteArray(length)
     if (read(buffer) != length) throw Protocol.ServerFailureException()
     return buffer

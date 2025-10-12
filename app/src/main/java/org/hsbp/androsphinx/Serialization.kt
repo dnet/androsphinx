@@ -46,7 +46,7 @@ class SerializedCredentialStore(private val bytes: ByteArray) : Protocol.Credent
             qr.skip(if (hasKey) 2L + MASTER_KEY_BYTES else 2L) // flags + threshold + keys?
             val serverCount = qr.read()
             val keys = (1..serverCount).map {
-                qr.readNBytes(CRYPTO_SIGN_PUBLICKEYBYTES)
+                qr.readExactly(CRYPTO_SIGN_PUBLICKEYBYTES)
             }
             InflaterInputStream(qr).use { decompressed ->
                 serverList = keys.map { key ->
@@ -121,5 +121,5 @@ private fun OutputStream.writePascalString(name: String) {
 
 private fun InputStream.readPascalString(): String {
     val length = read()
-    return readNBytes(length).decodeToString()
+    return readExactly(length).decodeToString()
 }
