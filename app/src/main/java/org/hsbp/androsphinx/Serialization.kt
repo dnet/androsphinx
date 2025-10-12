@@ -7,9 +7,13 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+import java.math.BigInteger
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.Locale
 import java.util.zip.DeflaterOutputStream
 import java.util.zip.InflaterInputStream
+import kotlin.experimental.and
 import kotlin.io.use
 
 const val QR_FLAGS_HAS_KEY: Int = 1
@@ -55,6 +59,18 @@ class SerializedCredentialStore(private val bytes: ByteArray) : Protocol.Credent
                             key, 0, CRYPTO_SIGN_PUBLICKEYBYTES))
                 }
             }
+        }
+    }
+
+    companion object {
+        fun fromQrRawBytes(bytes: ByteArray): SerializedCredentialStore {
+            val bignum = BigInteger(POSITIVE, bytes) shr 4
+            val bb = ByteBuffer.wrap(bignum.toByteArray()).order(ByteOrder.BIG_ENDIAN)
+            check(bb.get() == 4.toByte(), { "Only binary QR codes are supported" })
+            val length = if (bytes.size < 0x100) bb.get().toInt() else bb.getShort().toInt()
+            val payload = ByteArray(length)
+            bb.get(payload)
+            return SerializedCredentialStore(payload)
         }
     }
 }

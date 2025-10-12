@@ -3,34 +3,35 @@
 
 package org.hsbp.androsphinx
 
-import android.annotation.SuppressLint
 import android.annotation.TargetApi
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Point
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.text.InputType
 import android.util.AttributeSet
+import android.view.autofill.AutofillManager
+import android.widget.ImageView
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.getSystemService
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.drawable.toDrawable
+import androidx.core.net.toUri
 import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
-import com.google.zxing.integration.android.IntentIntegrator
-import android.graphics.Point
-import android.os.Build
-import android.provider.Settings
-import android.view.autofill.AutofillManager
-import android.widget.ImageView
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
-import androidx.core.content.getSystemService
 import com.commonsware.cwac.security.flagsecure.FlagSecureHelper
 import com.google.android.material.snackbar.Snackbar
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
-import androidx.core.graphics.drawable.toDrawable
-import androidx.core.graphics.createBitmap
-import androidx.core.net.toUri
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 
 class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -133,12 +134,23 @@ class SettingsFragment : PreferenceFragmentCompat(), Preference.OnPreferenceClic
         }
     }
 
-    @SuppressLint("MissingSuperCall")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == IntentIntegrator.REQUEST_CODE) {
+    override fun onPreferenceClick(preference: Preference): Boolean {
+        initiateScan()
+        return true
+    }
+
+    private fun initiateScan() {
+        val options = ScanOptions()
+        options.setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+        barcodeLauncher.launch(options)
+    }
+
+    private val barcodeLauncher: ActivityResultLauncher<ScanOptions> = registerForActivityResult(
+        ScanContract()) { result ->
+            val rb = result.rawBytes
+            if (rb == null) return@registerForActivityResult
             try {
-                val ir = IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
-                val parsed = SerializedCredentialStore(ir.byteSegments0)
+                val parsed = SerializedCredentialStore.fromQrRawBytes(rb)
 
                 if (parsed.hasKey) {
                     val ctx = requireContext()
@@ -165,16 +177,6 @@ class SettingsFragment : PreferenceFragmentCompat(), Preference.OnPreferenceClic
                     Snackbar.LENGTH_LONG).setAction(R.string.retry) { initiateScan() }.show()
             }
         }
-    }
-
-    override fun onPreferenceClick(preference: Preference): Boolean {
-        initiateScan()
-        return true
-    }
-
-    private fun initiateScan() {
-        IntentIntegrator(this).initiateScan(IntentIntegrator.QR_CODE_TYPES)
-    }
 }
 
 

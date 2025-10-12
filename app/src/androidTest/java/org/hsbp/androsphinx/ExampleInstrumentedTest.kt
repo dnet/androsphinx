@@ -33,6 +33,9 @@ const val EXPECTED_SOL = "AAAAAla2ZzCKSqru43jruW0FQAcmV0tdnJNE9r2ovD7R/BfjIVK2zg
 @Suppress("SpellCheckingInspection")
 const val PWDSPHINX_QR = "HQNM5h9N09pwNN6YUGjXPoK0R+SSa9YknX/N21OcHVquvgWVohk7Po2j/YDrTf50TWWGiT3x+QKUwfTQ50ADqtRWPsuJ3bLlqsRDKxW7wJ6r2cqueKl6tC9l3bICvOoAf/05voMViVAZ/Krg+vRl+kmm0cOhPEX76YSEu5xnuc+vbDPyFe8uUrbia1pkbjRypoIibSaqWCMBgdluhLcICyGlMwrc00+YwOr/y8D+irNTTHrod/xKn2m1BrNmHrhAK/OCeJxjzy9KTM5JNZSA0nrFBRmZeRV6xUaZenmZeVmJnMbsECkjqBIj3EqMoUqMcSsxgSoxwa3EFKrEFIsSAI35O6w="
 
+@Suppress("SpellCheckingInspection")
+const val PWDSPHINX_QR_RAW = "QBBB0DTOYfTdPacDTemFBo1z6CtEfkkmvWJJ1/zdtTnB1arr4FlaIZOz6No/2A603+dE1lhok98fkClMH00OdAA6rUVj7Lid2y5arEQysVu8Ceq9nKrniperQvZd2yArzqAH/9Ob6DFYlQGfyq4Pr0ZfpJptHDoTxF++mEhLucZ7nPr2wz8hXvLlK24mtaZG40cqaCIm0mqlgjAYHZboS3CAshpTMK3NNPmMDq/8vA/oqzU0x66Hf8Sp9ptQazZh64QCvzgnicY88vSkzOSTWUgNJ6xQUZmXkVesVGmXp5mXlZiZzG7BApI6gSI9xKjKFKjHErMYEqMcGtxBSqxBSLEgCN+TusDsEewR7BHsEewR7A==\n"
+
 @RunWith(AndroidJUnit4::class)
 class ExampleInstrumentedTest {
     @Test
@@ -170,6 +173,12 @@ class ExampleInstrumentedTest {
         assertEquals(cs.servers.map {
             Protocol.Server(it.name, it.host, 2355,
                 it.longTermSignatureKey) }, parsed2.servers)
+        val parsed3 = SerializedCredentialStore.fromQrRawBytes(Base64.decode(PWDSPHINX_QR_RAW,
+            Base64.DEFAULT))
+        assert(parsed3.key.contentEquals(parsed2.key))
+        assertEquals(parsed3.rwdKeys, parsed2.rwdKeys)
+        assertEquals(parsed3.threshold, parsed2.threshold)
+        assertEquals(parsed3.servers, parsed2.servers)
     }
 
     @Test
