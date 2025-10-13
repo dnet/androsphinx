@@ -28,8 +28,8 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import com.commonsware.cwac.security.flagsecure.FlagSecureHelper
 import com.google.android.material.snackbar.Snackbar
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.qrcode.QRCodeWriter
+import com.google.zxingsphinx.zxing.BarcodeFormat
+import com.google.zxingsphinx.zxing.qrcode.QRCodeWriter
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 
