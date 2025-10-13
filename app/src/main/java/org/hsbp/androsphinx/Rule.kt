@@ -51,7 +51,7 @@ data class Rule(val charClasses: Set<CharacterClass>, val symbols: Set<Char>,
     fun derive(source: ByteArray): String = derive(BigInteger(POSITIVE,
         DerivationContext.PASSWORD.foldHash(source)).xor(xorMask))
 
-    private fun derive(rwd: BigInteger): String {
+    fun derive(rwd: BigInteger): String {
         require(charClasses.isNotEmpty() || symbols.isNotEmpty()) { "At least one character class or symbol must be allowed." }
         val order = arrayOf(CharacterClass.UPPER, CharacterClass.LOWER, CharacterClass.DIGITS)
         val chars = order.filter(charClasses::contains).flatMap { it.range!!.sorted() }.toList() + symbols.sorted()

@@ -4,7 +4,6 @@ import org.junit.Test
 
 import org.junit.Assert.*
 import java.math.BigInteger
-import java.util.*
 
 /**
  * Example local unit test, which will execute on the development machine (host).
@@ -12,39 +11,29 @@ import java.util.*
  * See [testing documentation](http://d.android.com/tools/testing).
  */
 
-@Suppress("SpellCheckingInspection")
-const val RWD_INPUT = "vb4s5n4Vp1sJCouiXfwoTpBvfglolAUXq4oomcbPZIc="
+val RWD_INPUT = BigInteger("AA".repeat(32), 16)
 
 @Suppress("SpellCheckingInspection")
-const val DERIVED_UL_20 = "AZfYNTiUccgliDzrVQev"
+const val DERIVED_ULSD_0 = "2UH@/%XoTb+T-RT*tipUqT+b\'lYQ*kUiPOdq@sK"
 
 @Suppress("SpellCheckingInspection")
-const val DERIVED_U_20 = "IRVGNTDGXOKTTVUSOOJV"
+const val DERIVED_ULSD_8 = "iPOdq@sK"
 
 @Suppress("SpellCheckingInspection")
-const val DERIVED_ULSD_20 = "oSSF6EHjPau%po#rkwX4"
-@Suppress("SpellCheckingInspection")
-const val DERIVED_ULSD_20_SYMBOLS = ".:;#\$%&" // not sorted on purpose
+const val DERIVED_ULSD_20_SYMBOLS = ".:;#$%&" // not sorted on purpose
 
-@Suppress("SpellCheckingInspection")
 const val TEST_XOR_MASK = "FEDCBA9876543210FEDCBA9876543210FEDCBA9876543210FEDCBA9876543210"
 
 class ExampleUnitTest {
     @Test
     fun encodingTest() {
-        val rwd = BigInteger(POSITIVE, Base64.getDecoder().decode(RWD_INPUT))
+        val pwdUpperLowerSymbolsDigits0 = Rule(setOf(CharacterClass.UPPER, CharacterClass.LOWER, CharacterClass.DIGITS),
+            SYMBOL_SET.toSet(), BigInteger.ZERO, BigInteger.ZERO, null).derive(RWD_INPUT)
+        assertEquals(DERIVED_ULSD_0, pwdUpperLowerSymbolsDigits0)
 
-        val pwdUL20 = CharacterClass.derive(rwd,
-            setOf(CharacterClass.UPPER, CharacterClass.LOWER), 20, emptySet())
-        assertEquals(DERIVED_UL_20, pwdUL20)
-
-        val pwdU20 = CharacterClass.derive(rwd,
-            setOf(CharacterClass.UPPER), 20, emptySet())
-        assertEquals(DERIVED_U_20, pwdU20)
-
-        val pwdULSD20 = CharacterClass.derive(rwd,
-            CharacterClass.values().toSet(), 20, DERIVED_ULSD_20_SYMBOLS.toSet())
-        assertEquals(DERIVED_ULSD_20, pwdULSD20)
+        val pwdUpperLowerSymbolsDigits8 = Rule(setOf(CharacterClass.UPPER, CharacterClass.LOWER, CharacterClass.DIGITS),
+            SYMBOL_SET.toSet(), 8.toBigInteger(), BigInteger.ZERO, null).derive(RWD_INPUT)
+        assertEquals(DERIVED_ULSD_8, pwdUpperLowerSymbolsDigits8)
     }
 
     @Test
