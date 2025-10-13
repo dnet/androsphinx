@@ -74,7 +74,7 @@ class ExampleInstrumentedTest {
             while (tp.isNotDone) {
                 println("---while---")
                 val messages = if (peerMessages.isEmpty()) ByteArray(0) else peerMessages.reduce { acc, bytes -> acc + bytes }
-                println(tp.inputSizes?.joinToString())
+                println(tp.inputSizes)
                 val curStep = tp.step
                 var tpOut = tp.next(messages)!!
                 println("curStep = $curStep, tpOut = ${tpOut.toHexString()}")

@@ -37,7 +37,7 @@ class TpdkgContext(private var ctx: Long, private var buf: Long) : AutoCloseable
     val isNotDone: Boolean
         external get
 
-    val inputSizes: LongArray?
+    val inputSizes: Pair<Boolean, LongArray>
         external get
 
     val step: Int
