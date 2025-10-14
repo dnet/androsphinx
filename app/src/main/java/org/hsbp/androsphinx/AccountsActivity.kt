@@ -329,7 +329,7 @@ class AccountsActivity : AppCompatActivity() {
 
         if (Build.VERSION.SDK_INT >= 35) {
             ViewCompat.setOnApplyWindowInsetsListener(
-                findViewById(R.id.appbar)
+                findViewById(R.id.app_bar)
             ) { v: View, insets: WindowInsetsCompat ->
                 val systemBars: Insets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
                 v.setPadding(0, systemBars.top, 0, 0)
