@@ -36,7 +36,7 @@ compile_libsphinx_arch() {
 	cd ..
 	cp $TARGET/libsodium.so .
 	# no `make clean` here, as that would invoke one within NoiseXK as well
-	make CC=$2 LD=$ANDROID_NDK_TOOLCHAIN/bin/ld UNAME=GNU/Linux ARCH=$3 EXTRA_CFLAGS="-I../../$SODIUM/src/libsodium/include -I../../$SODIUM/src/libsodium/include/sodium -L." android
+	make CC=$2 LD=$ANDROID_NDK_TOOLCHAIN/bin/ld UNAME=GNU/Linux ARCH=$3 EXTRA_CFLAGS="-I../../$SODIUM/src/libsodium/include -I../../$SODIUM/src/libsodium/include/sodium -L." OBJCOPY=$ANDROID_NDK_TOOLCHAIN/bin/llvm-objcopy STRIP=$ANDROID_NDK_TOOLCHAIN/bin/llvm-strip android
 	cp noise_xk/liboprf-noiseXK.so liboprf.so $TARGET
 
 	cd ../../equihash
