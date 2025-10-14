@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
 import android.util.AttributeSet
+import android.view.View
 import android.view.autofill.AutofillManager
 import android.widget.ImageView
 import androidx.activity.result.ActivityResultLauncher
@@ -20,9 +21,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.getSystemService
+import androidx.core.graphics.Insets
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.toDrawable
 import androidx.core.net.toUri
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
@@ -41,6 +45,16 @@ class SettingsActivity : AppCompatActivity() {
             .beginTransaction()
             .replace(R.id.settings_container, SettingsFragment())
             .commit()
+
+        if (Build.VERSION.SDK_INT >= 35) {
+            ViewCompat.setOnApplyWindowInsetsListener(
+                findViewById(R.id.settings_container)
+            ) { v: View, insets: WindowInsetsCompat ->
+                val systemBars: Insets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+                v.setPadding(0, systemBars.top, 0, 0)
+                insets
+            }
+        }
     }
 }
 

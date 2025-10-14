@@ -29,6 +29,7 @@ import android.content.Context
 import android.view.autofill.AutofillManager.EXTRA_ASSIST_STRUCTURE
 import android.app.assist.AssistStructure
 import android.graphics.Typeface
+import android.os.Build
 import android.os.Parcelable
 import android.service.autofill.Dataset
 import android.service.autofill.FillResponse
@@ -36,6 +37,9 @@ import android.text.format.DateUtils
 import android.view.autofill.AutofillManager
 import android.view.autofill.AutofillValue
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.setPadding
 import androidx.core.view.updateLayoutParams
 import arrow.core.Either
@@ -323,6 +327,15 @@ class AccountsActivity : AppCompatActivity() {
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
 
+        if (Build.VERSION.SDK_INT >= 35) {
+            ViewCompat.setOnApplyWindowInsetsListener(
+                findViewById(R.id.appbar)
+            ) { v: View, insets: WindowInsetsCompat ->
+                val systemBars: Insets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+                v.setPadding(0, systemBars.top, 0, 0)
+                insets
+            }
+        }
         if (Intent.ACTION_SEARCH == intent.action) {
             intent.getStringExtra(SearchManager.QUERY)?.also { query ->
                 val hostname = try {

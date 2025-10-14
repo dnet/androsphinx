@@ -5,12 +5,19 @@ package org.hsbp.androsphinx
 
 import android.app.SearchManager
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.text.InputType
 import android.view.Menu
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import android.widget.SearchView
 import androidx.core.content.getSystemService
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
+import androidx.core.view.updatePadding
 import org.hsbp.androsphinx.databinding.ActivityMainBinding
 import java.net.URL
 
@@ -39,6 +46,16 @@ class MainActivity : AppCompatActivity() {
                 action = Intent.ACTION_SEARCH
                 putExtra(SearchManager.QUERY, url.toString())
             })
+        }
+
+        if (Build.VERSION.SDK_INT >= 35) {
+            ViewCompat.setOnApplyWindowInsetsListener(
+                findViewById(R.id.appbar)
+            ) { v: View, insets: WindowInsetsCompat ->
+                val systemBars: Insets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+                v.setPadding(0, systemBars.top, 0, 0)
+                insets
+            }
         }
     }
 
